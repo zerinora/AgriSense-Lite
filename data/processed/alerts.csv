@@ -1,0 +1,2 @@
+event_id,start_date,end_date,duration_days,min_date,min_dev,depth_std,deficit,raw_avail_share,high_cloud_share,dry_days_share,severity_level,severity_name,severity_score,ndvi_at_min,base50_at_min,precip7_mean
+1,2025-06-11,2025-06-20,10,2025-06-20,-0.0561,2.8050,0.5243,0.1000,0.0000,0.6000,1,minor,0.7050,0.4275,0.4836,7.7800

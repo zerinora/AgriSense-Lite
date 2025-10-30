@@ -1,0 +1,52 @@
+project:
+  name: AgriSense-Lite
+  version: 1
+
+region:
+  id: SCXJ_Baodun_6x6km
+  name: 四川·新津·宝墩 6×6km
+  center_lat: 30.4330
+  center_lon: 103.7500
+  roi_rectangle: [103.7200, 30.4030, 103.7800, 30.4630]  # [xmin, ymin, xmax, ymax]
+  timezone: Asia/Shanghai
+
+period:
+  start_date: 2024-01-01
+  end_date: 2025-10-01
+
+paths:
+  data_raw: data/raw
+  data_processed: data/processed
+  assets: assets
+  logs: logs
+
+open_meteo:
+  api: archive-api   # ERA5 历史回析接口
+  daily_vars:
+    - temperature_2m_max
+    - temperature_2m_min
+    - precipitation_sum
+    - shortwave_radiation_sum
+    - wind_speed_10m_max
+    - relative_humidity_2m_mean
+  outfile: data/raw/weather.csv
+
+gee_s2:
+  collection: COPERNICUS/S2_SR
+  mask: QA60
+  window_days: 16
+  ndvi_band_pair: [B8, B4]
+  ndvi_outfile: data/raw/ndvi.csv
+
+merge:
+  outfile: data/processed/merged.csv
+  join_key: date
+
+baseline:
+  smooth_window: 15
+  train_years: [2024]
+alerts:
+  dev_thresh: -0.05     # 低于基线中位线
+  min_run: 6            # 连续天数
+  precip7_max: null     # 若只看“干旱型”，改为 5
+  target_years: [2025]
