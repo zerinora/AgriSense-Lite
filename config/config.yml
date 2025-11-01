@@ -12,7 +12,7 @@ region:
 
 period:
   start_date: 2019-01-01
-  end_date: 2025-10-01
+  end_date: 2025-10-01pip install earthengine-api geemap
 
 paths:
   data_raw: data/raw
@@ -50,3 +50,7 @@ alerts:
   min_run: 6            # 连续天数
   precip7_max: null     # 若只看“干旱型”，改为 5
   target_years: [2025]
+gee:
+  project: "zz-smileangle"   # ← 你的 GCP Project ID
+  collection: "COPERNICUS/S2_SR_HARMONIZED"
+  cloud_pct_max: 80
