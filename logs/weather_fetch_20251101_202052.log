@@ -1,0 +1,8 @@
+[2025-11-01 20:20:52,379] INFO - Log file: E:\PythonProjects\AgriSense-Lite\logs\weather_fetch_20251101_202052.log
+[2025-11-01 20:20:52,379] INFO - 坐标：lat=30.433, lon=103.75
+[2025-11-01 20:20:52,379] INFO - 时间：2019-01-01 → 2025-10-01 @ Asia/Shanghai
+[2025-11-01 20:20:52,381] INFO - 变量：['temperature_2m_max', 'temperature_2m_min', 'precipitation_sum', 'shortwave_radiation_sum', 'wind_speed_10m_max', 'relative_humidity_2m_mean']
+[2025-11-01 20:20:52,381] INFO - 输出：E:\PythonProjects\AgriSense-Lite\data\raw\weather.csv
+[2025-11-01 20:20:54,476] INFO - CSV 已保存：E:\PythonProjects\AgriSense-Lite\data\raw\weather.csv（2466 天）
+[2025-11-01 20:20:54,476] INFO - 元数据已保存：E:\PythonProjects\AgriSense-Lite\data\raw\weather_meta.json
+[2025-11-01 20:20:54,484] INFO - 原始响应已保存：E:\PythonProjects\AgriSense-Lite\data\raw\weather_raw.json
