@@ -51,10 +51,11 @@ except ImportError as exc:
         "Google Earth Engine API is required. Install with `pip install earthengine-api`."
     ) from exc
 
-try:
-    import geemap  # type: ignore  # geemap simplifies conversion to pandas
-except ImportError:
-    geemap = None  # optional dependency
+# Always use manual conversion to avoid geemap computeFeatures serialization errors.
+# Geemap provides helper functions but may fail when certain properties contain
+# complex EE objects.  We ignore geemap entirely and use ``getInfo()`` to
+# convert the FeatureCollection to a pandas DataFrame.
+geemap = None
 
 from src.utils.config_loader import CFG
 
