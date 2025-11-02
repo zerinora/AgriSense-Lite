@@ -200,8 +200,26 @@ def fetch_indices() -> pd.DataFrame:
     # Re-read gee_cfg in case ``gee`` section was present
     gee_cfg = CFG.get('gee', {}) or CFG.get('gee_s2', {}) or {}
 
+    # Ensure that start_date and end_date are strings acceptable to Earth Engine.
+    # Some YAML loaders may parse dates into Python date objects, which are not
+    # directly serializable by the EE API (causing 'Cannot encode object' errors).
     start_date = period_cfg['start_date']
     end_date = period_cfg['end_date']
+    # Convert to ISO strings if they are date/datetime objects.
+    try:
+        import datetime  # Local import to avoid unused import when not needed.
+        if isinstance(start_date, (datetime.date, datetime.datetime)):
+            start_date = start_date.isoformat()
+        else:
+            start_date = str(start_date)
+        if isinstance(end_date, (datetime.date, datetime.datetime)):
+            end_date = end_date.isoformat()
+        else:
+            end_date = str(end_date)
+    except Exception:
+        # Fallback: cast to string
+        start_date = str(start_date)
+        end_date = str(end_date)
     roi_rect = region_cfg['roi_rectangle']  # [xmin, ymin, xmax, ymax]
 
     # Use the harmonized Sentinel‑2 SR dataset by default to avoid deprecation warnings
@@ -230,10 +248,31 @@ def fetch_indices() -> pd.DataFrame:
     # results via ``getInfo()``.
     # Get the number of images in the collection
     count = collection.size().getInfo()
+    # Inform the user how many images will be processed.  When running this
+    # script from a terminal, printing progress messages helps to avoid the
+    # impression that the program has frozen.  The try/except guards are
+    # included so that importing this function as a library does not
+    # inadvertently raise errors if ``print`` fails (for example in a
+    # headless environment or when redirected).
+    try:
+        print(f"[INFO] {count} images found in the collection. Starting processing…")
+    except Exception:
+        # Ignore print errors silently; progress output is optional.
+        pass
     img_list = collection.toList(count)
     # Prepare list of records
     records: List[Dict[str, Any]] = []
     for i in range(count):
+        # Print progress periodically: on the first iteration, every 10th image
+        # thereafter, and the final image.  This provides visibility into
+        # long‑running operations without flooding the console.  The try/except
+        # avoids raising exceptions if ``print`` encounters an issue (such as
+        # when stdout is unavailable).
+        if (i == 0) or ((i + 1) % 10 == 0) or (i + 1 == count):
+            try:
+                print(f"[INFO] Processing image {i + 1}/{count}…")
+            except Exception:
+                pass
         img = ee.Image(img_list.get(i))
         # Acquisition date as ISO string
         date_str: str = img.date().format('yyyy-MM-dd').getInfo()  # type: ignore
