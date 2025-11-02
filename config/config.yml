@@ -11,8 +11,8 @@ region:
   timezone: Asia/Shanghai
 
 period:
-  start_date: 2019-01-01
-  end_date: 2025-10-01pip install earthengine-api geemap
+  start_date: "2019-01-01"
+  end_date: "2025-10-01"
 
 paths:
   data_raw: data/raw

@@ -221,37 +221,44 @@ def fetch_indices() -> pd.DataFrame:
         .map(add_indices)
     )
 
-    # Map over the collection to extract features with mean indices
-    # Note: mapping an ImageCollection with a function returning a Feature
-    # produces a collection whose elements are Features but the outer type is
-    # still an ImageCollection.  Wrap with ee.FeatureCollection to ensure
-    # geemap.ee_to_df() accepts it【58891878179785†L329-L343】.
-    feats = collection.map(lambda img: extract_feature(img, region))
-    # Remove nulls (images without valid NDVI)
-    feats = feats.filter(ee.Filter.notNull(['NDVI']))
-    feats = ee.FeatureCollection(feats)
+    # ----------------------------------------------------------------------
+    # Compute index statistics for each image individually.
+    # Instead of mapping to a FeatureCollection and converting in bulk (which can
+    # trigger serialization issues in the Python client), iterate over the
+    # ImageCollection client‑side and request per‑image statistics.  This
+    # approach calls ``reduceRegion()`` for each image and materializes the
+    # results via ``getInfo()``.
+    # Get the number of images in the collection
+    count = collection.size().getInfo()
+    img_list = collection.toList(count)
+    # Prepare list of records
+    records: List[Dict[str, Any]] = []
+    for i in range(count):
+        img = ee.Image(img_list.get(i))
+        # Acquisition date as ISO string
+        date_str: str = img.date().format('yyyy-MM-dd').getInfo()  # type: ignore
+        # Compute mean of each index within the ROI
+        stats: Dict[str, Any] = img.select(['NDVI', 'NDMI', 'NDRE', 'EVI', 'GNDVI', 'MSI']).reduceRegion(
+            reducer=ee.Reducer.mean(),
+            geometry=region,
+            scale=10,
+            maxPixels=1_000_000_000,
+        ).getInfo()
+        # Build record with date and each index mean
+        record: Dict[str, Any] = {'date': date_str}
+        for orig_name, out_name in [
+            ('NDVI', 'ndvi_mean'),
+            ('NDMI', 'ndmi_mean'),
+            ('NDRE', 'ndre_mean'),
+            ('EVI', 'evi_mean'),
+            ('GNDVI', 'gndvi_mean'),
+            ('MSI', 'msi_mean'),
+        ]:
+            value = stats.get(orig_name)
+            record[out_name] = value if value is not None else None
+        records.append(record)
 
-    # Convert FeatureCollection to pandas DataFrame
-    if geemap is not None:
-        # geemap provides a convenient helper but it expects a FeatureCollection.
-        try:
-            df: pd.DataFrame = geemap.ee_to_df(feats)  # type: ignore
-        except Exception:
-            # Fallback: use getInfo() on the feature collection
-            info: Dict[str, Any] = feats.getInfo()
-            records: List[Dict[str, Any]] = []
-            for feat in info.get('features', []):
-                props = feat.get('properties', {})
-                records.append(props)
-            df = pd.DataFrame(records)
-    else:
-        # Fallback: use getInfo() on the feature collection
-        info: Dict[str, Any] = feats.getInfo()
-        records: List[Dict[str, Any]] = []
-        for feat in info.get('features', []):
-            props = feat.get('properties', {})
-            records.append(props)
-        df = pd.DataFrame(records)
+    df = pd.DataFrame(records)
 
     # Rename columns to match naming convention
     rename_map = {
