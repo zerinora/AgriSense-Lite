@@ -27,7 +27,13 @@ from pathlib import Path
 import pandas as pd
 
 from src.utils.config_loader import (
-    CFG, DATA_RAW, DATA_PROCESSED, WEATHER_CSV, NDVI_CSV, MERGED_CSV
+    CFG,
+    DATA_RAW,
+    DATA_PROCESSED,
+    WEATHER_CSV,
+    INDICES_CSV,
+    NDVI_CSV,
+    MERGED_CSV,
 )
 
 
@@ -78,33 +84,43 @@ def merge_weather_ndvi(
         The path to the written ``merged.csv`` file.
     """
 
-    # 1) 读入
+    # 1) Read the weather and remote‑sensing tables.  We support both
+    # legacy NDVI-only files and newer multi-index files.  The underlying
+    # config loader ensures that NDVI_CSV and INDICES_CSV point to the
+    # appropriate file on disk.
     w = pd.read_csv(WEATHER_CSV)
-    n = pd.read_csv(NDVI_CSV)
+    # Use INDICES_CSV for clarity (identical to NDVI_CSV)
+    n = pd.read_csv(INDICES_CSV)
 
     # 2) 日期 → datetime（只取日期部分）
     w["date"] = pd.to_datetime(w["date"]).dt.date
     n["date"] = pd.to_datetime(n["date"]).dt.date
 
-    # 3) NDVI 质量控制：大云量认为无效
+    # 3) NDVI quality control: only mask when a cloud_frac column exists.
+    # This keeps backward compatibility with older NDVI exports while not
+    # requiring this column in newer multi-index tables.
     if "cloud_frac" in n.columns:
-        # 如果 cloud_frac 存在，仍然对 NDVI 相关列进行过滤
-        cols_to_mask = [c for c in ["ndvi_mean", "ndvi_p10", "ndvi_p90"] if c in n.columns]
+        cols_to_mask = [
+            c
+            for c in (
+                "ndvi_mean",
+                "ndvi_p10",
+                "ndvi_p90",
+            )
+            if c in n.columns
+        ]
         n.loc[n["cloud_frac"] > cloud_frac_max, cols_to_mask] = pd.NA
 
-    # 4) 只保留我们需要的列
-    # 基础列
+    # 4) Only retain the columns we care about.  We drop intermediate
+    # Sentinel‑2 metadata (n_obs, window_start, etc.) because the new
+    # indices export does not provide them.  If these columns exist they
+    # will be kept; otherwise they are silently ignored.
     base_cols = [
         "date",
         "ndvi_mean",
         "ndvi_p10",
         "ndvi_p90",
-        "n_obs",
-        "cloud_frac",
-        "window_start",
-        "window_end",
     ]
-    # 可能存在的新指数列
     extra_indices = ["ndmi_mean", "ndre_mean", "evi_mean", "gndvi_mean", "msi_mean"]
     keep = base_cols + extra_indices
     n = n[[c for c in keep if c in n.columns]].copy()

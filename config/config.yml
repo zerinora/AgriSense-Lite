@@ -32,11 +32,11 @@ open_meteo:
   outfile: data/raw/weather.csv
 
 gee_s2:
-  collection: COPERNICUS/S2_SR
-  mask: QA60
-  window_days: 16
-  ndvi_band_pair: [B8, B4]
-  ndvi_outfile: data/raw/ndvi.csv
+  gee_s2:
+  collection: "COPERNICUS/S2_SR_HARMONIZED"
+  indices_outfile: data/raw/indices.csv  # 新的多指标表
+  # ndvi_outfile: data/raw/ndvi.csv      # 注释掉或删除旧字段
+
 
 merge:
   outfile: data/processed/merged.csv
