@@ -1,138 +1,62 @@
-"""
-plot_composite_alerts.py
-========================
-
-This script visualises the results of the composite alert detection.  It
-combines vegetation indices (NDVI, EVI) with short‑term precipitation
-information and overlays coloured markers for each detected event type.
-The plot is saved to ``assets/composite_alerts.png``.
-
-Usage::
-
-    python scripts/plot_composite_alerts.py
-
-Make sure ``build_composite_alerts.py`` has been run first so that
-``data/processed/alerts_composite.csv`` exists.
-"""
-
-from __future__ import annotations
-
-import os
+# -*- coding: utf-8 -*-
 from pathlib import Path
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Change working directory to project root
 ROOT = Path(__file__).resolve().parents[1]
-os.chdir(ROOT)
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
-def load_data() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Load merged data and alerts.
+MERGED = ROOT / "data/processed/merged.csv"
+ALERTS = ROOT / "data/processed/alerts_composite.csv"
+OUT = ROOT / "assets/composite_alerts.png"
 
-    Returns
-    -------
-    tuple of (merged DataFrame, alerts DataFrame)
-    """
-    merged_path = Path("data/processed/merged.csv")
-    alerts_path = Path("data/processed/alerts_composite.csv")
-    if not merged_path.exists():
-        raise FileNotFoundError(f"Merged data not found at {merged_path}")
-    if not alerts_path.exists():
-        raise FileNotFoundError(f"Alerts file not found at {alerts_path}")
-    merged = pd.read_csv(merged_path, parse_dates=["date"])
-    alerts = pd.read_csv(alerts_path, parse_dates=["date"])
-    return merged, alerts
+def main():
+    df = pd.read_csv(MERGED, parse_dates=["date"]).sort_values("date")
+    for c in ("ndvi_mean_daily","evi_mean","ndmi_mean","precip_7d"):
+        if c not in df.columns: raise SystemExit(f"missing {c}")
 
+    # 左轴 0-1：NDVI、EVI、NDMI
+    fig, ax = plt.subplots(figsize=(16,6), dpi=120)
+    ax.plot(df["date"], df["ndvi_mean_daily"].clip(-0.2, 1.0), color="forestgreen", lw=1.5, label="NDVI")
+    ax.plot(df["date"], df["evi_mean"].clip(-0.2, 1.0), color="tab:blue", lw=1.0, alpha=0.8, label="EVI")
+    ax.plot(df["date"], df["ndmi_mean"].clip(-0.2, 1.0), color="tab:gray", lw=1.0, alpha=0.6, label="NDMI")
+    ax.set_ylim(-0.2, 1.0)
+    ax.set_ylabel("Vegetation Index")
 
-def main() -> Path:
-    merged, alerts = load_data()
+    # 右轴：7日降水（正值，不取反）
+    ax2 = ax.twinx()
+    ax2.fill_between(df["date"], 0, df["precip_7d"], color="#cfe9ff", alpha=0.6, label="7d Precip (mm)")
+    ax2.set_ylabel("7-Day Precip (mm)")
+    ax2.grid(False)
 
-    fig, ax1 = plt.subplots(figsize=(12, 6))
+    # 事件散点
+    if ALERTS.exists():
+        ev = pd.read_csv(ALERTS, parse_dates=["date"])
+        sym = {
+            "drought": ("red", "o"),
+            "waterlogging": ("#3776ff", "s"),
+            "heat_stress": ("#8e44ad", "^"),
+            "cold_stress": ("#16a085", "v"),
+            "nutrient_or_pest": ("#f39c12", "o"),
+            "composite": ("black", "*"),
+        }
+        for t, (col, m) in sym.items():
+            sub = ev[ev["event_type"] == t]
+            if not sub.empty:
+                ax.scatter(sub["date"], [0.45]*len(sub), c=col, marker=m, s=35, edgecolors="none", label=t.replace("_"," ").title())
 
-    # Plot vegetation indices on the primary axis
-    has_ndvi = 'ndvi_mean_daily' in merged.columns
-    has_evi = 'evi_mean' in merged.columns
-    y_vals = []
-    if has_ndvi:
-        ax1.plot(merged['date'], merged['ndvi_mean_daily'], label='NDVI', color='darkgreen', linewidth=1.2)
-        y_vals.append(merged['ndvi_mean_daily'])
-    if has_evi:
-        ax1.plot(merged['date'], merged['evi_mean'], label='EVI', color='royalblue', linewidth=1.2)
-        y_vals.append(merged['evi_mean'])
-    ax1.set_ylabel('Vegetation Index')
-    ax1.set_xlabel('Date')
-
-    # Plot 7‑day precipitation on secondary axis
-    if 'precip_7d' in merged.columns:
-        ax2 = ax1.twinx()
-        ax2.plot(merged['date'], merged['precip_7d'], label='7d Precip (mm)', color='lightblue', linewidth=1.0, alpha=0.6)
-        ax2.set_ylabel('7‑Day Precip (mm)')
-        ax2.tick_params(axis='y', labelcolor='lightblue')
-    else:
-        ax2 = None
-
-    # Mark events on the NDVI/EVI lines
-    # Colour palette for each event type.  Normal events are omitted and not plotted.
-    event_colors = {
-        'drought': 'red',
-        'waterlogging': 'cyan',
-        'heat_stress': 'purple',
-        'cold_stress': 'blue',
-        'nutrient_or_pest': 'orange',
-        'composite': 'magenta',
-    }
-    # Prepare baseline y values for markers (we pick NDVI if available, else EVI)
-    if y_vals:
-        base_series = y_vals[0]
-    else:
-        base_series = pd.Series([0] * len(merged), index=merged.index)
-
-    for event_type, group in alerts.groupby('event_type'):
-        # Skip normal events
-        if event_type == 'normal':
-            continue
-        color = event_colors.get(event_type, 'black')
-        # Determine y position: use NDVI or EVI values at event dates; if missing, use NaN
-        y_positions = []
-        for d in group['date']:
-            row = merged.loc[merged['date'] == d]
-            if not row.empty:
-                if has_ndvi:
-                    y_positions.append(row.iloc[0]['ndvi_mean_daily'])
-                elif has_evi:
-                    y_positions.append(row.iloc[0]['evi_mean'])
-                else:
-                    y_positions.append(float('nan'))
-            else:
-                y_positions.append(float('nan'))
-        # Label: replace underscores with spaces and capitalise words
-        label = event_type.replace('_', ' ').title()
-        ax1.scatter(group['date'], y_positions, marker='o', color=color, label=label)
-
-    # Combine legends (avoid duplicates)
-    handles, labels = ax1.get_legend_handles_labels()
-    if ax2 is not None:
-        h2, l2 = ax2.get_legend_handles_labels()
-        handles += h2
-        labels += l2
-    # Remove duplicate labels
-    unique = dict()
-    new_handles = []
-    new_labels = []
-    for h, l in zip(handles, labels):
-        if l not in unique:
-            unique[l] = h
-            new_handles.append(h)
-            new_labels.append(l)
-    ax1.legend(new_handles, new_labels, loc='upper left', fontsize=8)
+    # 图例
+    h1, l1 = ax.get_legend_handles_labels()
+    h2, l2 = ax2.get_legend_handles_labels()
+    ax.legend(h1+h2, l1+l2, loc="upper left", ncol=3, frameon=False)
+    ax.set_xlabel("Date")
     fig.tight_layout()
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(OUT)
+    print("[OK] Plot saved to", OUT)
 
-    out_path = Path('assets') / 'composite_alerts.png'
-    out_path.parent.mkdir(exist_ok=True)
-    fig.savefig(out_path, dpi=300)
-    print(f"[OK] Plot saved to {out_path}")
-    return out_path
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

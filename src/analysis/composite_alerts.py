@@ -1,306 +1,120 @@
-"""
-Simple rule‑based composite alert detection.
-
-This module classifies each day in a merged dataset into one of several
-stress categories (drought, waterlogging, heat stress, cold stress,
-nutrient/pest) or normal.  If multiple stress flags are triggered the
-``event_type`` becomes ``composite``.  Thresholds are based on typical
-agronomic ranges and may be adjusted via keyword arguments.  Off‑season
-dates (November–March) are always marked as normal.
-"""
-
-from __future__ import annotations
-
+# -*- coding: utf-8 -*-
+from pathlib import Path
 import pandas as pd
-from typing import Dict, List, Optional
+import numpy as np
 
+ROOT = Path(__file__).resolve().parents[2]
+MERGED = ROOT / "data/processed/merged.csv"
+OUT = ROOT / "data/processed/alerts_composite.csv"
 
-def _classify_row(
-    row: pd.Series,
-    ndvi_thresh: float,
-    ndmi_thresh: float,
-    ndmi_strong_thresh: float,
-    msi_thresh: float,
-    msi_strong_thresh: float,
-    ndre_thresh: float,
-    ndre_strong_thresh: float,
-    evi_thresh: float,
-    gndvi_thresh: float,
-    precip_thresh: float,
-    rainlong_thresh: float,
-    humidity_thresh: float,
-    ndmi_wet_thresh: float,
-    tmean_hot_thresh: float = 30.0,
-    tmean_cold_thresh: float = 5.0,
-    rh_high_thresh: float = 0.75,
-    rh_low_thresh: float = 0.30,
-    evi_cover_thresh: float = 0.20,
-    ) -> Dict[str, str]:
-    """Classify a single day's conditions into stress categories.
+# —— 阈值（可按地面经验调） ——
+NDVI_CROP = 0.45
+EVI_CROP  = 0.35
+RS_MAX_AGE = 5  # 遥感“过期”天数：>5天视为不可用
 
-    Each row's vegetation indices and simple weather features are compared
-    to a set of thresholds.  Flags are raised for drought, waterlogging,
-    heat stress, cold stress and nutrient/pest; if more than one flag
-    triggers the result is ``composite``.  Off‑season dates (Nov–Mar)
-    return ``normal`` regardless of values.
-    """
-    reasons: List[str] = []
+NDMI_DRY  = 0.20
+MSI_DRY   = 1.50
+PRECIP_LOW7  = 15.0
+NDMI_WET  = 0.45
+PRECIP_HIGH7 = 60.0
 
-    # Extract values with fallback to NaN
-    ndvi = row.get("ndvi_mean_daily")
-    ndmi = row.get("ndmi_mean")
-    msi = row.get("msi_mean")
-    ndre = row.get("ndre_mean")
-    evi = row.get("evi_mean")
-    gndvi = row.get("gndvi_mean")
-    precip = row.get("precip_7d")
-    tmean = row.get("tmean_7d")
-    rh = row.get("relative_humidity_2m_mean")
+HEAT_TMEAN7 = 30.0
+HEAT_RH7    = 60.0
+COLD_TMIN7  = 3.0
 
-    # Season check: off‑season between 11‑01 and 03‑31 considered normal
-    date_val = row.get("date")
-    if pd.notna(date_val):
-        month_day = date_val.strftime("%m-%d")
-        # If date is in winter (Nov–Mar), skip anomaly classification
-        if ("11-01" <= month_day <= "12-31") or ("01-01" <= month_day <= "03-31"):
-            return {"event_type": "normal", "reason": "off‑season"}
+NDRE_LOW  = 0.30
+GNDVI_LOW = 0.50
 
-    # Initialise flags
-    drought_flag = False
-    waterlog_flag = False
-    heat_flag = False
-    cold_flag = False
-    nutrient_flag = False
+SLOPE7_DROP = -0.03  # NDVI近7天跌幅阈值
 
-    # Determine canopy presence: require some vegetation cover to classify drought or waterlogging
-    canopy_ok = False
-    if pd.notna(evi) and evi >= evi_cover_thresh:
-        canopy_ok = True
-    elif pd.notna(ndvi) and ndvi >= ndvi_thresh:
-        canopy_ok = True
+def _canopy_ok(row: pd.Series) -> bool:
+    ndvi = row["ndvi_mean_daily"]
+    evi  = row["evi_mean"]
+    age  = row["rs_age"]
+    ok = (pd.notna(ndvi) and ndvi >= NDVI_CROP) or (pd.notna(evi) and evi >= EVI_CROP)
+    return bool(ok and (age <= RS_MAX_AGE))
 
-    # ----- Drought / water stress -----
-    # Severe drought if NDMI or MSI crosses strong threshold regardless of rain
-    if canopy_ok:
-        if pd.notna(ndmi) and ndmi < ndmi_strong_thresh:
-            drought_flag = True
-            reasons.append(f"NDMI={ndmi:.3f}<strong_thresh{ndmi_strong_thresh}")
-        elif pd.notna(msi) and msi > msi_strong_thresh:
-            drought_flag = True
-            reasons.append(f"MSI={msi:.3f}>strong_thresh{msi_strong_thresh}")
-        else:
-            # Moderate drought: NDMI < thresh or MSI > thresh AND low precipitation
-            if pd.notna(ndmi) and ndmi < ndmi_thresh:
-                if pd.notna(precip) and precip < precip_thresh:
-                    drought_flag = True
-                    reasons.append(
-                        f"NDMI={ndmi:.3f}<thresh{ndmi_thresh} & precip_7d={precip:.1f}mm<{precip_thresh}"
-                    )
-            if not drought_flag and pd.notna(msi) and msi > msi_thresh:
-                if pd.notna(precip) and precip < precip_thresh:
-                    drought_flag = True
-                    reasons.append(
-                        f"MSI={msi:.3f}>thresh{msi_thresh} & precip_7d={precip:.1f}mm<{precip_thresh}"
-                    )
+def _is_winter_fallow(row: pd.Series) -> bool:
+    m = row["date"].month
+    if m in (11,12,1,2,3):
+        # 冬闲/油菜期：若无可靠冠层，则视为正常
+        return not _canopy_ok(row)
+    return False
 
-    # ----- Waterlogging / excess moisture -----
-    # Only evaluate waterlogging if drought not already flagged
-    if not drought_flag and canopy_ok:
-        # Wet canopy plus heavy rain and low NDVI/EVI indicates standing water
-        wet_canopy = pd.notna(ndmi) and ndmi > ndmi_wet_thresh
-        low_cover = False
-        if pd.notna(ndvi) and ndvi < ndvi_thresh:
-            low_cover = True
-        elif pd.notna(evi) and evi < evi_thresh:
-            low_cover = True
-        heavy_rain = pd.notna(precip) and precip > rainlong_thresh
-        if wet_canopy and low_cover and heavy_rain:
-            waterlog_flag = True
-            reasons.append(
-                f"NDMI={ndmi:.3f}>wet_thresh{ndmi_wet_thresh} & precip_7d={precip:.1f}mm>{rainlong_thresh} & low cover"
-            )
+def _classify_row(row: pd.Series) -> tuple[str | None, str]:
+    if _is_winter_fallow(row):
+        return None, ""
 
-    # ----- Heat stress -----
-    # High temperature combined with canopy stress and low humidity
-    if pd.notna(tmean) and tmean > tmean_hot_thresh:
-        # Consider humidity only if provided; convert thresholds to percent
-        rh_ok = pd.isna(rh) or (rh < rh_low_thresh * 100)
-        if rh_ok:
-            # Require canopy stress (EVI below threshold) to avoid misclassifying short heat spikes
-            if pd.notna(evi) and evi < evi_thresh:
-                heat_flag = True
-                reasons.append(
-                    f"tmean_7d={tmean:.1f}>hot_thresh{tmean_hot_thresh} & EVI={evi:.3f}<evi_thresh{evi_thresh}"
-                )
+    ndvi = row["ndvi_mean_daily"]; evi = row["evi_mean"]
+    ndmi = row["ndmi_mean"]; msi = row["msi_mean"]
+    ndre = row["ndre_mean"]; gnd = row["gndvi_mean"]
+    p7   = row["precip_7d"];  t7  = row["tmean_7d"]
+    rh7  = row["rh_7d"];      tmin7 = row.get("tmin_7d", np.nan)
+    slope7 = row["ndvi_slope7"]
+    canopy = _canopy_ok(row)
 
-    # ----- Cold stress -----
-    if pd.notna(tmean) and tmean < tmean_cold_thresh:
-        if pd.notna(rh) and rh > rh_high_thresh * 100:
-            cold_flag = True
-            reasons.append(
-                f"tmean_7d={tmean:.1f}<cold_thresh{tmean_cold_thresh} & RH={rh:.0f}%>high_RH{rh_high_thresh*100:.0f}%"
-            )
+    trig = []
 
-    # ----- Nutrient deficiency or pest/disease -----
-    # Evaluate only if no other primary stress is present
-    if not (drought_flag or waterlog_flag or heat_flag or cold_flag):
-        indicators: List[str] = []
-        if pd.notna(ndre) and ndre < ndre_strong_thresh:
-            indicators.append(f"NDRE={ndre:.3f}<strong_thresh{ndre_strong_thresh}")
-        elif pd.notna(ndre) and ndre < ndre_thresh:
-            indicators.append(f"NDRE={ndre:.3f}<thresh{ndre_thresh}")
-        if pd.notna(gndvi) and gndvi < gndvi_thresh:
-            indicators.append(f"GNDVI={gndvi:.3f}<thresh{gndvi_thresh}")
-        if pd.notna(evi) and evi < evi_thresh:
-            indicators.append(f"EVI={evi:.3f}<evi_thresh{evi_thresh}")
-        # Ensure moisture conditions are adequate so that low indices are not due to drought
-        moisture_ok = True
-        if pd.notna(ndmi) and ndmi < ndmi_thresh:
-            moisture_ok = False
-        if pd.notna(msi) and msi > msi_thresh:
-            moisture_ok = False
-        if indicators and moisture_ok:
-            nutrient_flag = True
-            reasons.extend(indicators)
-            # Add humidity qualifier if high humidity encourages disease
-            if pd.notna(rh) and rh > humidity_thresh * 100:
-                reasons.append(f"RH={rh:.0f}%>humid_thresh{humidity_thresh*100:.0f}%")
+    # 干旱：需有冠层 + 水分信号 + 少雨
+    if canopy and pd.notna(ndmi) and ((ndmi < NDMI_DRY) or (pd.notna(msi) and msi > MSI_DRY)) and (pd.notna(p7) and p7 < PRECIP_LOW7):
+        trig.append(("drought", f"NDMI={ndmi:.3f}/MSI={msi:.3f}; precip_7d={p7:.1f}"))
 
-    # ----- Determine final event type -----
-    flags = [drought_flag, waterlog_flag, heat_flag, cold_flag, nutrient_flag]
-    flag_names = [
-        (drought_flag, "drought"),
-        (waterlog_flag, "waterlogging"),
-        (heat_flag, "heat_stress"),
-        (cold_flag, "cold_stress"),
-        (nutrient_flag, "nutrient_or_pest"),
-    ]
-    # Count how many flags are true
-    active = [name for flag, name in flag_names if flag]
-    if not active:
-        return {"event_type": "normal", "reason": ""}
-    # Single flag -> assign that event; multiple -> composite
-    if len(active) == 1:
-        return {"event_type": active[0], "reason": "; ".join(reasons)}
-    return {"event_type": "composite", "reason": "; ".join(reasons)}
+    # 水涝：需有冠层 + 过湿 + 大雨 + 植被低
+    if canopy and pd.notna(ndmi) and (ndmi > NDMI_WET) and (pd.notna(p7) and p7 > PRECIP_HIGH7) and ((pd.notna(evi) and evi < EVI_CROP) or (pd.notna(ndvi) and ndvi < NDVI_CROP)):
+        trig.append(("waterlogging", f"NDMI={ndmi:.3f}; precip_7d={p7:.1f}; EVI={evi:.3f}, NDVI={ndvi:.3f}"))
 
+    # 热胁迫：需有冠层 + 高温 + 干/或快速下跌
+    if canopy and pd.notna(t7) and (t7 >= HEAT_TMEAN7) and (pd.notna(rh7) and rh7 <= HEAT_RH7) and ((pd.notna(evi) and evi < EVI_CROP) or (pd.notna(slope7) and slope7 <= SLOPE7_DROP)):
+        trig.append(("heat_stress", f"tmean_7d={t7:.1f}°C, RH7={rh7:.0f}%, slope7={slope7:.3f}, EVI={evi:.3f}"))
 
-def detect_composite_alerts(
-    df: pd.DataFrame,
-    train_years: Optional[List[int]] = None,
-    # NDVI threshold: lower to 0.35 to permit detection of partial canopy cover
-    # for waterlogging and drought checks in mixed cropping phases.
-    ndvi_thresh: float = 0.35,
-    # NDMI thresholds: moderate drought below 0.20; severe drought below 0.10.
-    ndmi_thresh: float = 0.20,
-    ndmi_strong_thresh: float = 0.10,
-    # MSI thresholds: moderate drought above 1.0; severe drought above 1.5.
-    msi_thresh: float = 1.0,
-    msi_strong_thresh: float = 1.5,
-    # NDRE thresholds: nutrient/pest stress below 0.28; severe below 0.20【675122315655608†L140-L156】.
-    ndre_thresh: float = 0.28,
-    ndre_strong_thresh: float = 0.20,
-    # EVI stress threshold remains 0.2
-    evi_thresh: float = 0.2,
-    # GNDVI stress threshold lowered to 0.5 (from 0.5 default) to detect early stress.
-    gndvi_thresh: float = 0.5,
-    # Precipitation thresholds: moderate drought if 7‑day rainfall < 15 mm;
-    precip_thresh: float = 15.0,
-    # Waterlogging threshold: heavy rain > 60 mm in 7 days triggers waterlogging
-    rainlong_thresh: float = 60.0,
-    humidity_thresh: float = 0.75,
-    # NDMI wet threshold for waterlogging: values above 0.40 indicate a wet canopy【73289060569815†L120-L137】.
-    ndmi_wet_thresh: float = 0.40,
-    tmean_hot_thresh: float = 30.0,
-    tmean_cold_thresh: float = 5.0,
-    rh_high_thresh: float = 0.75,
-    rh_low_thresh: float = 0.30,
-    # EVI cover threshold: lowered to 0.20 to include early growth phases.
-    evi_cover_thresh: float = 0.20,
-    drop_normal: bool = True,
-) -> pd.DataFrame:
-    """Detect composite crop stress events from a merged data frame.
+    # 冷胁迫：需有冠层 + 低温阈值（7日最低气温） + 指数低/下跌；1–3月只对确有冠层的冬作物生效
+    if canopy and pd.notna(tmin7) and (tmin7 <= COLD_TMIN7) and ((pd.notna(evi) and evi < 0.40) or (pd.notna(ndvi) and ndvi < 0.50) or (pd.notna(slope7) and slope7 <= SLOPE7_DROP)):
+        trig.append(("cold_stress", f"tmin_7d={tmin7:.1f}°C, EVI={evi:.3f}, NDVI={ndvi:.3f}, slope7={slope7:.3f}"))
 
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        The merged data frame with date index and index/weather columns.  If
-        the ``date`` column is not already a datetime index, it will be
-        converted.
-    train_years : list[int], optional
-        Not used in the current rule‑based implementation, but retained for
-        API compatibility.  In future, threshold training could be derived
-        from historical data.
-    ndvi_thresh : float
-        NDVI threshold below which plants are considered stressed.
-    ndmi_thresh : float
-        NDMI threshold indicating moderate water stress when precipitation is
-        simultaneously low.
-    ndmi_strong_thresh : float
-        NDMI threshold indicating severe drought regardless of rainfall.
-    msi_thresh : float
-        MSI threshold indicating moderate moisture stress when rainfall is low.
-    msi_strong_thresh : float
-        MSI threshold indicating severe drought regardless of rainfall.
-    ndre_thresh : float
-        NDRE threshold signalling potential nutrient deficiency or pest/disease.
-    ndre_strong_thresh : float
-        Stricter NDRE threshold for pronounced chlorophyll stress.
-    evi_thresh : float
-        EVI threshold for stressed canopy conditions.
-    gndvi_thresh : float
-        GNDVI threshold for early stress detection.
-    precip_thresh : float
-        7‑day precipitation threshold below which drought conditions are
-        inferred when NDMI/MSI indicate moisture stress.
-    rainlong_thresh : float
-        7‑day precipitation threshold above which waterlogging is inferred
-        when NDVI is low and NDMI high.
-    humidity_thresh : float
-        Relative humidity fraction (0–1) above which nutrient/pest anomalies
-        are more likely to be disease/pest (wet environment).  Values are
-        compared against the ``relative_humidity_2m_mean`` column expressed in
-        percent (0–100).
-    drop_normal : bool
-        Whether to exclude rows classified as ``normal`` from the output.
+    # 营养/病虫：需有冠层 + 叶绿素指数低 + 水分不干
+    if canopy and ((pd.notna(ndre) and ndre < NDRE_LOW) or (pd.notna(gnd) and gnd < GNDVI_LOW)) and (pd.notna(ndmi) and ndmi >= NDMI_DRY):
+        trig.append(("nutrient_or_pest", f"NDRE={ndre:.3f}, GNDVI={gnd:.3f}, NDMI={ndmi:.3f}"))
 
-    Returns
-    -------
-    pandas.DataFrame
-        A dataframe with columns ``date``, ``event_type``, and ``reason``.
-    """
-    df = df.copy()
+    if len(trig) == 0:
+        return None, ""
+    if len(trig) >= 2:
+        return "composite", " + ".join(k for k,_ in trig)
+    return trig[0][0], trig[0][1]
+
+def detect_composite_alerts(df: pd.DataFrame) -> pd.DataFrame:
     if "date" not in df.columns:
-        raise ValueError("input dataframe must contain a 'date' column")
-    if not pd.api.types.is_datetime64_any_dtype(df["date"]):
-        df["date"] = pd.to_datetime(df["date"])
+        raise ValueError("df must contain 'date'")
+    df = df.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    df.sort_values("date", inplace=True)
 
-    results = []
-    for _, row in df.iterrows():
-        res = _classify_row(
-            row,
-            ndvi_thresh,
-            ndmi_thresh,
-            ndmi_strong_thresh,
-            msi_thresh,
-            msi_strong_thresh,
-            ndre_thresh,
-            ndre_strong_thresh,
-            evi_thresh,
-            gndvi_thresh,
-            precip_thresh,
-            rainlong_thresh,
-            humidity_thresh,
-            ndmi_wet_thresh,
-            tmean_hot_thresh,
-            tmean_cold_thresh,
-            rh_high_thresh,
-            rh_low_thresh,
-            evi_cover_thresh,
-        )
-        results.append(res)
+    # 7日滚动指标
+    if "ndvi_mean_daily" not in df.columns: df["ndvi_mean_daily"] = np.nan
+    df["ndvi_slope7"] = df["ndvi_mean_daily"] - df["ndvi_mean_daily"].shift(7)
 
-    out = pd.DataFrame({"date": df["date"], "event_type": [r["event_type"] for r in results], "reason": [r["reason"] for r in results]})
-    if drop_normal:
-        out = out[out["event_type"] != "normal"].reset_index(drop=True)
+    if "temperature_2m_min" in df.columns:
+        df["tmin_7d"] = df["temperature_2m_min"].rolling(7, min_periods=3).min()
+    else:
+        df["tmin_7d"] = df["tmean_7d"]  # 兜底
+
+    # 遥感观测时效：距离最近一次有效 NDVI 的天数
+    v = df["ndvi_mean_daily"].notna()
+    last = df["date"].where(v).ffill()
+    df["rs_age"] = (df["date"] - last).dt.days.fillna(9999).astype(int)
+
+    rows = []
+    for _, r in df.iterrows():
+        et, reason = _classify_row(r)
+        if et:
+            rows.append({"date": r["date"], "event_type": et, "reason": reason})
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out.sort_values("date", inplace=True)
     return out
+
+def run(infile: Path = MERGED, outfile: Path = OUT) -> Path:
+    df = pd.read_csv(infile, parse_dates=["date"])
+    out = detect_composite_alerts(df)
+    outfile.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(outfile, index=False)
+    return outfile

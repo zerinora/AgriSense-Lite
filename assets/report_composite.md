@@ -4,112 +4,33 @@
 
 | event_type       |   count |
 |:-----------------|--------:|
-| drought          |      66 |
-| nutrient_or_pest |      36 |
+| drought          |      89 |
+| cold_stress      |      82 |
+| nutrient_or_pest |      32 |
+| composite        |      29 |
+| heat_stress      |       1 |
 
 ## Event Details
 
-| date                | event_type       | reason                                                                                         |
-|:--------------------|:-----------------|:-----------------------------------------------------------------------------------------------|
-| 2019-04-05 00:00:00 | nutrient_or_pest | GNDVI=0.430<thresh0.5                                                                          |
-| 2019-04-07 00:00:00 | drought          | NDMI=0.175<thresh0.2 & precip_7d=11.8mm<15.0                                                   |
-| 2019-05-17 00:00:00 | drought          | NDMI=0.058<strong_thresh0.1                                                                    |
-| 2019-06-01 00:00:00 | drought          | NDMI=0.122<thresh0.2 & precip_7d=5.6mm<15.0                                                    |
-| 2019-06-06 00:00:00 | drought          | NDMI=0.077<strong_thresh0.1                                                                    |
-| 2019-07-01 00:00:00 | drought          | NDMI=0.159<thresh0.2 & precip_7d=4.9mm<15.0                                                    |
-| 2019-08-03 00:00:00 | nutrient_or_pest | GNDVI=0.410<thresh0.5; RH=89%>humid_thresh75%                                                  |
-| 2019-08-13 00:00:00 | nutrient_or_pest | GNDVI=0.328<thresh0.5; EVI=-2.149<evi_thresh0.2; RH=80%>humid_thresh75%                        |
-| 2019-08-23 00:00:00 | nutrient_or_pest | GNDVI=0.494<thresh0.5; RH=83%>humid_thresh75%                                                  |
-| 2019-09-22 00:00:00 | drought          | NDMI=0.123<thresh0.2 & precip_7d=7.0mm<15.0                                                    |
-| 2019-09-27 00:00:00 | drought          | NDMI=0.091<strong_thresh0.1                                                                    |
-| 2019-10-17 00:00:00 | drought          | NDMI=0.069<strong_thresh0.1                                                                    |
-| 2019-10-29 00:00:00 | drought          | NDMI=0.056<strong_thresh0.1                                                                    |
-| 2020-04-24 00:00:00 | nutrient_or_pest | NDRE=0.228<thresh0.28; GNDVI=0.320<thresh0.5                                                   |
-| 2020-04-26 00:00:00 | drought          | NDMI=0.130<thresh0.2 & precip_7d=0.9mm<15.0                                                    |
-| 2020-05-01 00:00:00 | drought          | NDMI=0.088<strong_thresh0.1                                                                    |
-| 2020-05-04 00:00:00 | drought          | NDMI=0.034<strong_thresh0.1                                                                    |
-| 2020-05-14 00:00:00 | drought          | NDMI=0.083<strong_thresh0.1                                                                    |
-| 2020-05-19 00:00:00 | drought          | NDMI=0.069<strong_thresh0.1                                                                    |
-| 2020-05-31 00:00:00 | drought          | NDMI=0.099<strong_thresh0.1                                                                    |
-| 2020-06-25 00:00:00 | drought          | NDMI=0.149<thresh0.2 & precip_7d=7.8mm<15.0                                                    |
-| 2020-07-08 00:00:00 | nutrient_or_pest | GNDVI=0.421<thresh0.5; RH=82%>humid_thresh75%                                                  |
-| 2020-10-21 00:00:00 | drought          | NDMI=0.073<strong_thresh0.1                                                                    |
-| 2021-04-21 00:00:00 | drought          | NDMI=0.176<thresh0.2 & precip_7d=10.5mm<15.0                                                   |
-| 2021-05-11 00:00:00 | drought          | NDMI=0.049<strong_thresh0.1                                                                    |
-| 2021-05-31 00:00:00 | drought          | NDMI=0.108<thresh0.2 & precip_7d=5.9mm<15.0                                                    |
-| 2021-06-10 00:00:00 | drought          | NDMI=0.147<thresh0.2 & precip_7d=11.6mm<15.0                                                   |
-| 2021-06-28 00:00:00 | drought          | NDMI=0.177<thresh0.2 & precip_7d=8.2mm<15.0                                                    |
-| 2021-07-03 00:00:00 | drought          | NDMI=0.179<thresh0.2 & precip_7d=6.4mm<15.0                                                    |
-| 2021-07-13 00:00:00 | nutrient_or_pest | GNDVI=0.348<thresh0.5; EVI=-4.760<evi_thresh0.2; RH=77%>humid_thresh75%                        |
-| 2021-07-23 00:00:00 | nutrient_or_pest | GNDVI=0.306<thresh0.5; RH=87%>humid_thresh75%                                                  |
-| 2021-08-04 00:00:00 | drought          | NDMI=0.174<thresh0.2 & precip_7d=0.2mm<15.0                                                    |
-| 2021-08-27 00:00:00 | nutrient_or_pest | GNDVI=0.357<thresh0.5; RH=83%>humid_thresh75%                                                  |
-| 2021-09-28 00:00:00 | drought          | NDMI=0.085<strong_thresh0.1                                                                    |
-| 2022-04-09 00:00:00 | nutrient_or_pest | GNDVI=0.461<thresh0.5                                                                          |
-| 2022-04-19 00:00:00 | nutrient_or_pest | NDRE=0.242<thresh0.28; GNDVI=0.300<thresh0.5; RH=78%>humid_thresh75%                           |
-| 2022-04-24 00:00:00 | nutrient_or_pest | NDRE=-0.028<strong_thresh0.2; GNDVI=-0.053<thresh0.5; EVI=0.007<evi_thresh0.2                  |
-| 2022-04-26 00:00:00 | drought          | NDMI=0.152<thresh0.2 & precip_7d=1.8mm<15.0                                                    |
-| 2022-05-09 00:00:00 | nutrient_or_pest | NDRE=0.245<thresh0.28; GNDVI=0.370<thresh0.5                                                   |
-| 2022-07-05 00:00:00 | drought          | NDMI=0.175<thresh0.2 & precip_7d=3.9mm<15.0                                                    |
-| 2022-07-10 00:00:00 | drought          | NDMI=0.173<thresh0.2 & precip_7d=0.8mm<15.0                                                    |
-| 2022-07-23 00:00:00 | nutrient_or_pest | GNDVI=0.471<thresh0.5; RH=80%>humid_thresh75%                                                  |
-| 2022-08-17 00:00:00 | nutrient_or_pest | GNDVI=0.482<thresh0.5                                                                          |
-| 2022-08-22 00:00:00 | drought          | NDMI=0.155<thresh0.2 & precip_7d=0.0mm<15.0                                                    |
-| 2022-08-24 00:00:00 | drought          | NDMI=0.188<thresh0.2 & precip_7d=0.2mm<15.0                                                    |
-| 2022-09-06 00:00:00 | drought          | NDMI=0.182<thresh0.2 & precip_7d=9.5mm<15.0                                                    |
-| 2022-09-28 00:00:00 | drought          | NDMI=0.085<strong_thresh0.1                                                                    |
-| 2022-10-16 00:00:00 | drought          | NDMI=0.070<strong_thresh0.1                                                                    |
-| 2022-10-21 00:00:00 | drought          | NDMI=0.043<strong_thresh0.1                                                                    |
-| 2022-10-23 00:00:00 | drought          | NDMI=0.048<strong_thresh0.1                                                                    |
-| 2022-10-31 00:00:00 | drought          | NDMI=0.069<strong_thresh0.1                                                                    |
-| 2023-04-01 00:00:00 | drought          | NDMI=0.196<thresh0.2 & precip_7d=11.2mm<15.0                                                   |
-| 2023-04-04 00:00:00 | nutrient_or_pest | GNDVI=0.431<thresh0.5                                                                          |
-| 2023-04-06 00:00:00 | nutrient_or_pest | GNDVI=0.413<thresh0.5                                                                          |
-| 2023-04-09 00:00:00 | nutrient_or_pest | GNDVI=0.450<thresh0.5                                                                          |
-| 2023-04-11 00:00:00 | drought          | NDMI=0.186<thresh0.2 & precip_7d=13.7mm<15.0                                                   |
-| 2023-05-01 00:00:00 | nutrient_or_pest | NDRE=0.065<strong_thresh0.2; GNDVI=0.097<thresh0.5; EVI=-0.406<evi_thresh0.2                   |
-| 2023-05-16 00:00:00 | drought          | NDMI=0.076<strong_thresh0.1                                                                    |
-| 2023-05-19 00:00:00 | drought          | NDMI=0.131<thresh0.2 & precip_7d=2.9mm<15.0                                                    |
-| 2023-05-29 00:00:00 | drought          | NDMI=0.129<thresh0.2 & precip_7d=0.3mm<15.0                                                    |
-| 2023-06-05 00:00:00 | nutrient_or_pest | NDRE=-0.101<strong_thresh0.2; GNDVI=-0.130<thresh0.5; EVI=0.125<evi_thresh0.2                  |
-| 2023-06-10 00:00:00 | nutrient_or_pest | NDRE=0.254<thresh0.28; GNDVI=0.340<thresh0.5                                                   |
-| 2023-06-18 00:00:00 | drought          | NDMI=0.143<thresh0.2 & precip_7d=5.7mm<15.0                                                    |
-| 2023-06-23 00:00:00 | drought          | NDMI=0.175<thresh0.2 & precip_7d=6.6mm<15.0                                                    |
-| 2023-07-05 00:00:00 | drought          | NDMI=0.180<thresh0.2 & precip_7d=13.9mm<15.0                                                   |
-| 2023-07-08 00:00:00 | drought          | NDMI=0.195<thresh0.2 & precip_7d=10.1mm<15.0                                                   |
-| 2023-07-10 00:00:00 | drought          | NDMI=0.183<thresh0.2 & precip_7d=2.6mm<15.0                                                    |
-| 2023-08-09 00:00:00 | nutrient_or_pest | GNDVI=0.319<thresh0.5; EVI=-0.005<evi_thresh0.2; RH=86%>humid_thresh75%                        |
-| 2023-08-22 00:00:00 | nutrient_or_pest | GNDVI=0.331<thresh0.5; RH=82%>humid_thresh75%                                                  |
-| 2023-09-06 00:00:00 | nutrient_or_pest | NDRE=0.066<strong_thresh0.2; GNDVI=0.009<thresh0.5; EVI=-0.170<evi_thresh0.2                   |
-| 2023-09-21 00:00:00 | drought          | NDMI=0.109<thresh0.2 & precip_7d=12.3mm<15.0                                                   |
-| 2023-10-21 00:00:00 | drought          | NDMI=0.084<strong_thresh0.1                                                                    |
-| 2023-10-28 00:00:00 | drought          | NDMI=0.093<strong_thresh0.1                                                                    |
-| 2024-04-10 00:00:00 | nutrient_or_pest | GNDVI=0.359<thresh0.5                                                                          |
-| 2024-04-13 00:00:00 | nutrient_or_pest | GNDVI=0.440<thresh0.5                                                                          |
-| 2024-04-15 00:00:00 | nutrient_or_pest | GNDVI=0.480<thresh0.5                                                                          |
-| 2024-05-20 00:00:00 | drought          | NDMI=0.095<strong_thresh0.1                                                                    |
-| 2024-05-23 00:00:00 | drought          | NDMI=0.127<thresh0.2 & precip_7d=4.5mm<15.0                                                    |
-| 2024-05-25 00:00:00 | drought          | NDMI=0.129<thresh0.2 & precip_7d=6.3mm<15.0                                                    |
-| 2024-08-03 00:00:00 | nutrient_or_pest | GNDVI=0.439<thresh0.5; RH=88%>humid_thresh75%                                                  |
-| 2024-08-18 00:00:00 | nutrient_or_pest | GNDVI=0.482<thresh0.5; RH=79%>humid_thresh75%                                                  |
-| 2024-08-23 00:00:00 | nutrient_or_pest | GNDVI=0.350<thresh0.5                                                                          |
-| 2024-09-20 00:00:00 | drought          | NDMI=0.093<strong_thresh0.1                                                                    |
-| 2024-09-22 00:00:00 | drought          | NDMI=0.077<strong_thresh0.1                                                                    |
-| 2024-09-27 00:00:00 | drought          | NDMI=0.056<strong_thresh0.1                                                                    |
-| 2024-10-15 00:00:00 | drought          | NDMI=0.117<thresh0.2 & precip_7d=6.5mm<15.0                                                    |
-| 2024-10-17 00:00:00 | drought          | NDMI=0.061<strong_thresh0.1                                                                    |
-| 2024-10-22 00:00:00 | drought          | NDMI=0.092<strong_thresh0.1                                                                    |
-| 2024-10-27 00:00:00 | drought          | NDMI=0.070<strong_thresh0.1                                                                    |
-| 2025-04-07 00:00:00 | nutrient_or_pest | GNDVI=0.482<thresh0.5                                                                          |
-| 2025-04-10 00:00:00 | nutrient_or_pest | GNDVI=0.497<thresh0.5                                                                          |
-| 2025-04-27 00:00:00 | nutrient_or_pest | GNDVI=0.480<thresh0.5                                                                          |
-| 2025-05-05 00:00:00 | nutrient_or_pest | GNDVI=0.498<thresh0.5                                                                          |
-| 2025-05-13 00:00:00 | drought          | NDMI=0.127<thresh0.2 & precip_7d=10.5mm<15.0                                                   |
-| 2025-05-20 00:00:00 | drought          | NDMI=0.074<strong_thresh0.1                                                                    |
-| 2025-05-20 00:00:00 | drought          | NDMI=0.062<strong_thresh0.1                                                                    |
-| 2025-05-25 00:00:00 | drought          | NDMI=0.096<strong_thresh0.1                                                                    |
-| 2025-06-04 00:00:00 | drought          | NDMI=0.121<thresh0.2 & precip_7d=9.4mm<15.0                                                    |
-| 2025-06-12 00:00:00 | drought          | NDMI=0.137<thresh0.2 & precip_7d=2.1mm<15.0                                                    |
-| 2025-06-17 00:00:00 | nutrient_or_pest | NDRE=-0.033<strong_thresh0.2; GNDVI=-0.068<thresh0.5; EVI=0.003<evi_thresh0.2                  |
-| 2025-08-03 00:00:00 | drought          | NDMI=0.171<thresh0.2 & precip_7d=4.4mm<15.0                                                    |
-| 2025-09-15 00:00:00 | nutrient_or_pest | NDRE=0.213<thresh0.28; GNDVI=0.210<thresh0.5; EVI=-6.668<evi_thresh0.2; RH=85%>humid_thresh75% |
+| date                | event_type       | reason                                             |
+|:--------------------|:-----------------|:---------------------------------------------------|
+| 2019-02-04 00:00:00 | composite        | drought + cold_stress                              |
+| 2019-02-06 00:00:00 | composite        | drought + cold_stress                              |
+| 2019-02-11 00:00:00 | composite        | drought + cold_stress                              |
+| 2019-03-28 00:00:00 | drought          | NDMI=0.175/MSI=0.750; precip_7d=1.8                |
+| 2019-04-05 00:00:00 | nutrient_or_pest | NDRE=0.337, GNDVI=0.430, NDMI=0.229                |
+| 2019-04-07 00:00:00 | drought          | NDMI=0.175/MSI=0.748; precip_7d=11.8               |
+| 2019-06-01 00:00:00 | drought          | NDMI=0.122/MSI=0.807; precip_7d=5.6                |
+| 2019-07-01 00:00:00 | drought          | NDMI=0.159/MSI=0.753; precip_7d=4.9                |
+| 2019-08-03 00:00:00 | nutrient_or_pest | NDRE=0.370, GNDVI=0.410, NDMI=0.272                |
+| 2019-08-23 00:00:00 | nutrient_or_pest | NDRE=0.406, GNDVI=0.494, NDMI=0.256                |
+| 2019-09-22 00:00:00 | drought          | NDMI=0.123/MSI=0.809; precip_7d=7.0                |
+| 2019-09-27 00:00:00 | drought          | NDMI=0.091/MSI=0.859; precip_7d=8.4                |
+| 2019-12-21 00:00:00 | composite        | drought + cold_stress                              |
+| 2020-01-07 00:00:00 | drought          | NDMI=0.173/MSI=0.737; precip_7d=2.5                |
+| 2020-02-05 00:00:00 | cold_stress      | tmin_7d=2.2°C, EVI=nan, NDVI=0.467, slope7=0.127   |
+| 2020-02-06 00:00:00 | composite        | cold_stress + nutrient_or_pest                     |
+| 2020-02-09 00:00:00 | nutrient_or_pest | NDRE=0.360, GNDVI=0.465, NDMI=0.203                |
+| 2020-02-11 00:00:00 | drought          | NDMI=0.180/MSI=0.731; precip_7d=11.7               |
+| 2020-02-16 00:00:00 | composite        | drought + cold_stress                              |
+| 2020-02-17 00:00:00 | cold_stress      | tmin_7d=-0.9°C, EVI=nan, NDVI=0.453, slope7=-0.055 |
