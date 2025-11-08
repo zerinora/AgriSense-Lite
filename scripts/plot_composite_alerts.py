@@ -73,12 +73,14 @@ def main() -> Path:
         ax2 = None
 
     # Mark events on the NDVI/EVI lines
+    # Colour palette for each event type.  Normal events are omitted and not plotted.
     event_colors = {
         'drought': 'red',
         'waterlogging': 'cyan',
-        'nutrient_or_pest': 'orange',
         'heat_stress': 'purple',
         'cold_stress': 'blue',
+        'nutrient_or_pest': 'orange',
+        'composite': 'magenta',
     }
     # Prepare baseline y values for markers (we pick NDVI if available, else EVI)
     if y_vals:
@@ -87,6 +89,9 @@ def main() -> Path:
         base_series = pd.Series([0] * len(merged), index=merged.index)
 
     for event_type, group in alerts.groupby('event_type'):
+        # Skip normal events
+        if event_type == 'normal':
+            continue
         color = event_colors.get(event_type, 'black')
         # Determine y position: use NDVI or EVI values at event dates; if missing, use NaN
         y_positions = []
@@ -101,7 +106,9 @@ def main() -> Path:
                     y_positions.append(float('nan'))
             else:
                 y_positions.append(float('nan'))
-        ax1.scatter(group['date'], y_positions, marker='o', color=color, label=event_type.capitalize())
+        # Label: replace underscores with spaces and capitalise words
+        label = event_type.replace('_', ' ').title()
+        ax1.scatter(group['date'], y_positions, marker='o', color=color, label=label)
 
     # Combine legends (avoid duplicates)
     handles, labels = ax1.get_legend_handles_labels()
