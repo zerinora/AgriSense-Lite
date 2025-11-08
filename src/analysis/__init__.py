@@ -24,4 +24,4 @@ sources (e.g. Alabama Extension ANR‑3180) for each index.  These can be
 tuned via function arguments when calling the detection routine.
 """
 
-from ..transform.composite_alerts import detect_composite_alerts  # noqa: F401
+from .composite_alerts import detect_composite_alerts  # noqa: F401

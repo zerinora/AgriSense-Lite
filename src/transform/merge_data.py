@@ -141,12 +141,19 @@ def merge_weather_ndvi(
     elif "ndvi_mean" in df.columns:
         df["ndvi_mean_daily"] = df["ndvi_mean"]
 
-    # 8) 示例派生特征：7 日降水累计、7 日均温
+    # 8) 派生气象特征：滚动降水、均温、相对湿度
+    # 7 日降水累计
     if "precipitation_sum" in df.columns:
         df["precip_7d"] = df["precipitation_sum"].rolling(7, min_periods=1).sum()
+
+    # 7 日平均气温
     if {"temperature_2m_max", "temperature_2m_min"} <= set(df.columns):
         df["tmean"] = (df["temperature_2m_max"] + df["temperature_2m_min"]) / 2.0
         df["tmean_7d"] = df["tmean"].rolling(7, min_periods=1).mean()
+
+    # 7 日平均相对湿度（若存在）
+    if "relative_humidity_2m_mean" in df.columns:
+        df["rh_7d"] = df["relative_humidity_2m_mean"].rolling(7, min_periods=1).mean()
 
     # 9) 输出
     DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
