@@ -1,3 +1,0 @@
-base50_at_min,deficit,depth_std,drop_days,dry_days_share,duration_days,end_date,event_id,high_cloud_share,min_date,min_dev,min_drop,ndvi_at_min,precip7_mean,raw_avail_share,severity_level,severity_name,severity_score,start_date,type
-0.4836,0.5243,2.805,,0.6,10,2025-06-20,1,0.0,2025-06-20,-0.0561,,0.4275,7.78,0.1,major,minor,0.756,2025-06-11,season
-,,,10.0,,11,2025-05-21,1,,2025-05-13,,-0.1005,,,,moderate,,0.7,2025-05-11,slope
