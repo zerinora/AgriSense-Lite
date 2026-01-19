@@ -4,8 +4,14 @@ __pycache__/
 .venv/
 venv/
 # Data cache
+data/raw/*.csv
 data/raw/*.json
 data/raw/*.zip
+data/processed/*.csv
+data/processed/*.png
+# Logs
+logs/
+*.log
 # Jupyter
 .ipynb_checkpoints/
 # OS

@@ -1,29 +1,54 @@
-# AgriSense-Lite · 项目骨架说明
+﻿# AgriSense-Lite · 智慧农业轻量化监测流水线
 
-这是标准化的智慧农业原型系统目录。规则很简单：
+AgriSense-Lite 是一个轻量化的智慧农业监测原型：融合 ERA5 日尺度气象与 Sentinel-2 遥感指数，构建 NDVI 季节基线，并识别干旱、水涝、热/冷胁迫、营养/病虫等异常。
 
-- **src/** 放“可复用的程序”（库函数与模块）
-- **scripts/** 放“可执行入口”（命令行外壳），解析参数后调用 src 里的函数；
-- **config/** 集中写参数（研究区、时间段、路径、变量、阈值），**只改这里**；
-- **data/raw/** 是原始层，外部接口/首次导出的第一落地；**禁止手改**；
-- **data/processed/** 是处理层，清洗/合并/派生后的分析基线，可由代码重建；
-- **notebooks/** 做探索、可视化与出图，但尽量调用 src 中的函数；
-- **docs/** 放报告、计划书、PPT 等文档；
-- **assets/** 放图片、底图、Logo 等静态资源；
-- **logs/** 放运行日志与调试输出。
+## 功能概览
 
-## 关键路径（默认）
+- 获取 ERA5 气象日表（Open-Meteo）
+- 通过 GEE 拉取 Sentinel-2 指数（NDVI/NDMI/NDRE/EVI/GNDVI/MSI）
+- 合并气象与遥感为日尺度总表
+- 构建 NDVI DOY 基线并检测偏离告警
+- 复合事件判定与可视化/报告输出
 
-- 气象原始表：`data/raw/weather.csv`
-- NDVI 原始表：`data/raw/ndvi.csv`
-- 融合总表：`data/processed/merged.csv`
+## 目录结构
+
+- **src/** 可复用的程序（库函数与模块）
+- **scripts/** 可执行入口（命令行外壳），解析参数后调用 src
+- **config/** 参数中心（研究区、时间段、路径、变量、阈值），**只改这里**
+- **data/raw/** 原始层（外部接口/首次导出的第一落地），**禁止手改**
+- **data/processed/** 处理层（清洗/合并/派生后的分析基线，可由代码重建）
+- **notebooks/** 探索、可视化与出图（尽量调用 src）
+- **docs/** 报告、计划书、PPT 等文档
+- **assets/** 图片、底图、Logo 等静态资源
+- **logs/** 运行日志与调试输出
+
+## 关键输入/输出（默认）
+
 - 配置文件：`config/config.yml`
-- 日志目录：`logs/`
+- 气象原始表：`data/raw/weather.csv`
+- 遥感指数表：`data/raw/indices.csv`
+- 融合总表：`data/processed/merged.csv`
+- 基线与告警：`data/processed/ndvi_baseline.csv`, `data/processed/alerts.csv`
+- 复合告警：`data/processed/alerts_composite.csv`
+- 图表/报告：`assets/ndvi_baseline_alerts.png`, `assets/composite_alerts.png`, `assets/report_composite.md`
 
-只在有可靠冠层信号（NDVI≥0.45 或 EVI≥0.35，且遥感更新≤5 天）时，才允许判定冷/热/营养/病虫、水涝；
+## 快速开始
 
-冷胁迫改用「7 日最低气温」做门槛（tmin_7d<3℃），并要求冠层存在且指数低/下跌；
+1. 安装依赖：`pip install -r requirements.txt`
+2. 配置研究区与时间段：`config/config.yml`
+3. 获取气象：`python scripts/fetch_weather.py`
+4. 获取遥感指数（需 GEE 账号与项目）：`python scripts/fetch_indices.py`
+5. 合并数据：`python scripts/build_merged.py`
+6. 生成基线与告警：`python scripts/build_baseline.py`
+7. 生成复合告警：`python scripts/build_composite_alerts.py`
+8. 可视化与报告：
+   - `python scripts/plot_baseline_alerts.py`
+   - `python scripts/plot_composite_alerts.py`
+   - `python scripts/make_report.py`
 
-休耕/冬闲过滤：11–3 月若没有可靠冠层则直接视为正常，不触发任何异常；
+## 告警规则（简版）
 
-无遥感当天不判：遥感缺测或“陈旧（>5 天）”的一天不做冠层相关异常判定。
+- 仅当冠层可靠（NDVI ≥ 0.45 或 EVI ≥ 0.35）且遥感更新时间 ≤ 5 天时，才判定冷/热/营养/病虫、水涝等事件
+- 冷胁迫使用 7 日最低气温阈值（`tmin_7d < 3℃`），并要求指数低/下跌
+- 休耕/冬闲：11–3 月若无可靠冠层，视为正常
+- 遥感缺测或“陈旧（>5 天）”当天不做冠层相关异常判定
