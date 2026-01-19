@@ -14,26 +14,13 @@ from typing import List, Dict, Any, Optional
 import pandas as pd
 import requests
 
-from src.utils.config_loader import CFG, WEATHER_CSV, DATA_RAW, LOGS
+from src.utils.config_loader import CFG, WEATHER_CSV, DATA_RAW
 
 ARCHIVE_API = "https://archive-api.open-meteo.com/v1/era5"
 
 MIN_DAILY_VARS = ["temperature_2m_max", "temperature_2m_min", "precipitation_sum"]
 
-def _setup_logger() -> logging.Logger:
-    LOGS.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_path = LOGS / f"weather_fetch_{ts}.log"
-    logger = logging.getLogger("weather_fetch")
-    logger.handlers.clear()
-    logger.setLevel(logging.INFO)
-    fh = logging.FileHandler(log_path, encoding="utf-8")
-    sh = logging.StreamHandler()
-    fmt = logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s")
-    fh.setFormatter(fmt); sh.setFormatter(fmt)
-    logger.addHandler(fh); logger.addHandler(sh)
-    logger.info(f"Log file: {log_path}")
-    return logger
+logger = logging.getLogger(__name__)
 
 def _request_daily(lat: float, lon: float, start_date: str, end_date: str,
                    daily_vars: List[str], timezone: str = "auto",
@@ -82,8 +69,6 @@ def fetch_and_save(
     """
     读取参数→请求→保存 CSV/JSON→返回元数据字典
     """
-    logger = _setup_logger()
-
     region = CFG["region"]
     period = CFG["period"]
     om = CFG["open_meteo"]

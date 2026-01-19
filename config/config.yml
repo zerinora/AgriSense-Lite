@@ -1,27 +1,55 @@
+# 配置文件：修改这里即可调整运行参数（所有路径默认相对项目根目录）
+
+# 项目元数据
 project:
-  name: AgriSense-Lite
+  # 项目名称
+  name: "AgriSense-Lite"
+  # 配置版本
   version: 1
 
+# 区域设置
 region:
-  id: SCXJ_Baodun_6x6km
-  name: 四川·新津·宝墩 6×6km
-  center_lat: 30.4330
-  center_lon: 103.7500
-  roi_rectangle: [103.7200, 30.4030, 103.7800, 30.4630]  # [xmin, ymin, xmax, ymax]
-  timezone: Asia/Shanghai
+  # 区域标识
+  id: "SCXJ_Baodun_6x6km"
+  # 区域名称
+  name: "四川·新津·宝墩 6×6km"
+  # 中心纬度（十进制）
+  center_lat: 30.433
+  # 中心经度（十进制）
+  center_lon: 103.75
+  # ROI 矩形范围 [xmin, ymin, xmax, ymax]
+  roi_rectangle: [103.72, 30.403, 103.78, 30.463]
+  # 时区（例如 Asia/Shanghai）
+  timezone: "Asia/Shanghai"
 
+# 时间范围（YYYY-MM-DD）
 period:
+  # 开始日期
   start_date: "2019-01-01"
+  # 结束日期
   end_date: "2025-10-01"
 
+# 输出路径（相对项目根目录）
 paths:
-  data_raw: data/raw
-  data_processed: data/processed
-  assets: assets
-  logs: logs
+  # 原始数据目录
+  data_raw: "data/raw"
+  # 处理后数据目录
+  data_processed: "data/processed"
+  # 图表/报告输出目录
+  assets: "assets"
+  # 日志目录
+  logs: "logs"
 
+# 日志设置
+logging:
+  # 日志级别：DEBUG / INFO / WARNING / ERROR
+  level: "INFO"
+
+# 气象数据源（Open-Meteo / ERA5）
 open_meteo:
-  api: archive-api   # ERA5 历史回析接口
+  # 接口类型（archive-api 为 ERA5 历史回析）
+  api: "archive-api"
+  # 日尺度变量列表
   daily_vars:
     - temperature_2m_max
     - temperature_2m_min
@@ -29,28 +57,63 @@ open_meteo:
     - shortwave_radiation_sum
     - wind_speed_10m_max
     - relative_humidity_2m_mean
-  outfile: data/raw/weather.csv
+  # 气象输出 CSV 路径
+  outfile: "data/raw/weather.csv"
 
+# Sentinel-2 设置（GEE）
 gee_s2:
+  # 历史占位字段（保留）
   gee_s2:
+  # Sentinel-2 SR 数据集
   collection: "COPERNICUS/S2_SR_HARMONIZED"
-  indices_outfile: data/raw/indices.csv  # 新的多指标表
-  # ndvi_outfile: data/raw/ndvi.csv      # 注释掉或删除旧字段
+  # 指数输出 CSV 路径
+  indices_outfile: "data/raw/indices.csv"
+  # 旧 NDVI 输出路径（可选）
+  # ndvi_outfile: data/raw/ndvi.csv
 
-
+# 合并输出
 merge:
-  outfile: data/processed/merged.csv
-  join_key: date
+  # 合并输出 CSV 路径
+  outfile: "data/processed/merged.csv"
+  # 合并主键（通常为 date）
+  join_key: "date"
 
-baseline:
-  smooth_window: 15
-  train_years: [2024]
-alerts:
-  dev_thresh: -0.05     # 低于基线中位线
-  min_run: 6            # 连续天数
-  precip7_max: null     # 若只看“干旱型”，改为 5
-  target_years: [2025]
+# 复合告警阈值（按事件类型）
+composite_alerts:
+  # 冠层判定：NDVI 阈值
+  ndvi_crop: 0.45
+  # 冠层判定：EVI 阈值
+  evi_crop: 0.35
+  # 遥感有效期（天）
+  rs_max_age: 5
+  # 干旱：NDMI 低阈值
+  ndmi_dry: 0.2
+  # 干旱：MSI 高阈值
+  msi_dry: 1.5
+  # 干旱：7 日降水低阈值（mm）
+  precip_low7: 15.0
+  # 水涝：NDMI 高阈值
+  ndmi_wet: 0.45
+  # 水涝：7 日降水高阈值（mm）
+  precip_high7: 60.0
+  # 热胁迫：7 日均温阈值（°C）
+  heat_tmean7: 30.0
+  # 热胁迫：7 日相对湿度低阈值（%）
+  heat_rh7: 60.0
+  # 冷胁迫：7 日最低气温阈值（°C）
+  cold_tmin7: 3.0
+  # 营养/病虫：NDRE 低阈值
+  ndre_low: 0.3
+  # 营养/病虫：GNDVI 低阈值
+  gndvi_low: 0.5
+  # 热/冷胁迫：NDVI 7 天下跌阈值
+  slope7_drop: -0.03
+
+# GEE 项目设置
 gee:
-  project: "zz-smileangle"   # ← 你的 GCP Project ID
+  # GCP Project ID（必填；可用 EE_PROJECT 覆盖）
+  project: "zz-smileangle"
+  # Sentinel-2 SR 数据集
   collection: "COPERNICUS/S2_SR_HARMONIZED"
+  # 云量过滤阈值（%）
   cloud_pct_max: 80

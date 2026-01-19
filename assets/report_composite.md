@@ -1,36 +1,74 @@
-# Composite Alert Report
+# 复合告警业务简报
 
-## Event Summary
+## 业务要点
 
-| event_type       |   count |
-|:-----------------|--------:|
-| drought          |      88 |
-| cold_stress      |      82 |
-| nutrient_or_pest |      32 |
-| composite        |      30 |
-| heat_stress      |       1 |
+- 数据范围：2019-01-01 ~ 2025-10-01，共 2473 天，遥感有效率 100.0%
+- 共识别 233 次事件，其中复合事件 30 次；最频繁类型为 干旱（88 次）。
 
-## Event Details
+## 行动建议
 
-| date                | event_type       | reason                                             |
-|:--------------------|:-----------------|:---------------------------------------------------|
-| 2019-02-04 00:00:00 | composite        | drought + cold_stress                              |
-| 2019-02-06 00:00:00 | composite        | drought + cold_stress                              |
-| 2019-02-11 00:00:00 | composite        | drought + cold_stress                              |
-| 2019-03-28 00:00:00 | drought          | NDMI=0.175/MSI=0.750; precip_7d=1.8                |
-| 2019-04-05 00:00:00 | nutrient_or_pest | NDRE=0.337, GNDVI=0.430, NDMI=0.229                |
-| 2019-04-07 00:00:00 | drought          | NDMI=0.175/MSI=0.748; precip_7d=11.8               |
-| 2019-06-01 00:00:00 | drought          | NDMI=0.122/MSI=0.807; precip_7d=5.6                |
-| 2019-07-01 00:00:00 | drought          | NDMI=0.159/MSI=0.753; precip_7d=4.9                |
-| 2019-08-03 00:00:00 | nutrient_or_pest | NDRE=0.370, GNDVI=0.410, NDMI=0.272                |
-| 2019-08-23 00:00:00 | nutrient_or_pest | NDRE=0.406, GNDVI=0.494, NDMI=0.256                |
-| 2019-09-22 00:00:00 | drought          | NDMI=0.123/MSI=0.809; precip_7d=7.0                |
-| 2019-09-27 00:00:00 | drought          | NDMI=0.091/MSI=0.859; precip_7d=8.4                |
-| 2019-12-21 00:00:00 | composite        | drought + cold_stress                              |
-| 2020-01-07 00:00:00 | drought          | NDMI=0.176/MSI=0.737; precip_7d=2.5                |
-| 2020-02-05 00:00:00 | cold_stress      | tmin_7d=2.2°C, EVI=nan, NDVI=0.467, slope7=0.127   |
-| 2020-02-06 00:00:00 | composite        | cold_stress + nutrient_or_pest                     |
-| 2020-02-09 00:00:00 | nutrient_or_pest | NDRE=0.360, GNDVI=0.465, NDMI=0.203                |
-| 2020-02-11 00:00:00 | drought          | NDMI=0.180/MSI=0.731; precip_7d=11.7               |
-| 2020-02-16 00:00:00 | composite        | drought + cold_stress                              |
-| 2020-02-17 00:00:00 | cold_stress      | tmin_7d=-1.0°C, EVI=nan, NDVI=0.453, slope7=-0.055 |
+- 干旱事件：关注灌溉与土壤墒情，必要时安排补水。
+- 热胁迫事件：加强高温时段水分保障与遮阴管理。
+- 冷胁迫事件：关注寒潮预警，必要时采取覆盖或保温措施。
+- 营养/病虫事件：结合田间巡查，评估追肥或病虫防治。
+- 复合事件：优先现场核查，多因素协同处置。
+
+## 可视化
+
+![复合告警与时序](composite_alerts.png)
+
+![告警类型统计](composite_alerts_counts.png)
+
+![告警月度分布](composite_alerts_monthly.png)
+
+## 告警概览（中文）
+
+| 事件类型   |   次数 |
+|:-------|-----:|
+| 干旱     |   88 |
+| 冷胁迫    |   82 |
+| 营养/病虫  |   32 |
+| 复合事件   |   30 |
+| 热胁迫    |    1 |
+
+## 月度分布（中文）
+
+|   月份 |   事件数 |
+|-----:|------:|
+|    1 |    41 |
+|    2 |    67 |
+|    3 |    15 |
+|    4 |    19 |
+|    5 |    17 |
+|    6 |     8 |
+|    7 |    11 |
+|    8 |    13 |
+|    9 |     6 |
+|   10 |     9 |
+|   11 |     6 |
+|   12 |    21 |
+
+## 事件明细（最新20条）
+
+| 日期         | 事件类型   | 触发原因                                               |
+|:-----------|:-------|:---------------------------------------------------|
+| 2019-02-04 | 复合事件   | drought + cold_stress                              |
+| 2019-02-06 | 复合事件   | drought + cold_stress                              |
+| 2019-02-11 | 复合事件   | drought + cold_stress                              |
+| 2019-03-28 | 干旱     | NDMI=0.175/MSI=0.750; precip_7d=1.8                |
+| 2019-04-05 | 营养/病虫  | NDRE=0.337, GNDVI=0.430, NDMI=0.229                |
+| 2019-04-07 | 干旱     | NDMI=0.175/MSI=0.748; precip_7d=11.8               |
+| 2019-06-01 | 干旱     | NDMI=0.122/MSI=0.807; precip_7d=5.6                |
+| 2019-07-01 | 干旱     | NDMI=0.159/MSI=0.753; precip_7d=4.9                |
+| 2019-08-03 | 营养/病虫  | NDRE=0.370, GNDVI=0.410, NDMI=0.272                |
+| 2019-08-23 | 营养/病虫  | NDRE=0.406, GNDVI=0.494, NDMI=0.256                |
+| 2019-09-22 | 干旱     | NDMI=0.123/MSI=0.809; precip_7d=7.0                |
+| 2019-09-27 | 干旱     | NDMI=0.091/MSI=0.859; precip_7d=8.4                |
+| 2019-12-21 | 复合事件   | drought + cold_stress                              |
+| 2020-01-07 | 干旱     | NDMI=0.176/MSI=0.737; precip_7d=2.5                |
+| 2020-02-05 | 冷胁迫    | tmin_7d=2.2°C, EVI=nan, NDVI=0.467, slope7=0.127   |
+| 2020-02-06 | 复合事件   | cold_stress + nutrient_or_pest                     |
+| 2020-02-09 | 营养/病虫  | NDRE=0.360, GNDVI=0.465, NDMI=0.203                |
+| 2020-02-11 | 干旱     | NDMI=0.180/MSI=0.731; precip_7d=11.7               |
+| 2020-02-16 | 复合事件   | drought + cold_stress                              |
+| 2020-02-17 | 冷胁迫    | tmin_7d=-1.0°C, EVI=nan, NDVI=0.453, slope7=-0.055 |

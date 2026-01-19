@@ -2,28 +2,41 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
+try:
+    from src.utils.config_loader import CFG
+except ImportError:
+    from utils.config_loader import CFG
+
 ROOT = Path(__file__).resolve().parents[2]
 MERGED = ROOT / "data/processed/merged.csv"
 OUT = ROOT / "data/processed/alerts_composite.csv"
 
-NDVI_CROP = 0.45
-EVI_CROP  = 0.35
-RS_MAX_AGE = 5
+_ALERT_CFG = CFG.get("composite_alerts", {})
 
-NDMI_DRY  = 0.20
-MSI_DRY   = 1.50
-PRECIP_LOW7  = 15.0
-NDMI_WET  = 0.45
-PRECIP_HIGH7 = 60.0
 
-HEAT_TMEAN7 = 30.0
-HEAT_RH7    = 60.0
-COLD_TMIN7  = 3.0
+def _cfg_value(key: str, default):
+    value = _ALERT_CFG.get(key, default)
+    return default if value is None else value
 
-NDRE_LOW  = 0.30
-GNDVI_LOW = 0.50
 
-SLOPE7_DROP = -0.03
+NDVI_CROP = float(_cfg_value("ndvi_crop", 0.45))
+EVI_CROP = float(_cfg_value("evi_crop", 0.35))
+RS_MAX_AGE = int(_cfg_value("rs_max_age", 5))
+
+NDMI_DRY = float(_cfg_value("ndmi_dry", 0.20))
+MSI_DRY = float(_cfg_value("msi_dry", 1.50))
+PRECIP_LOW7 = float(_cfg_value("precip_low7", 15.0))
+NDMI_WET = float(_cfg_value("ndmi_wet", 0.45))
+PRECIP_HIGH7 = float(_cfg_value("precip_high7", 60.0))
+
+HEAT_TMEAN7 = float(_cfg_value("heat_tmean7", 30.0))
+HEAT_RH7 = float(_cfg_value("heat_rh7", 60.0))
+COLD_TMIN7 = float(_cfg_value("cold_tmin7", 3.0))
+
+NDRE_LOW = float(_cfg_value("ndre_low", 0.30))
+GNDVI_LOW = float(_cfg_value("gndvi_low", 0.50))
+
+SLOPE7_DROP = float(_cfg_value("slope7_drop", -0.03))
 
 def _canopy_ok(row: pd.Series) -> bool:
     ndvi = row["ndvi_mean_daily"]

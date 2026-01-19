@@ -4,6 +4,7 @@ scripts/fetch_weather.py
 命令行入口：读取 config.yml，支持传参覆盖，写出 data/raw/weather.csv + weather_meta.json
 """
 import sys
+import logging
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -16,6 +17,15 @@ from typing import List, Optional
 
 from src.fetch.open_meteo import fetch_and_save
 from src.utils.config_loader import CFG, WEATHER_CSV
+
+def configure_logging():
+    log_cfg = CFG.get("logging", {})
+    level_name = str(log_cfg.get("level", "INFO")).upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="[%(asctime)s] %(levelname)s - %(message)s",
+    )
 
 def parse_args():
     p = argparse.ArgumentParser(description="从 Open-Meteo ERA5 获取逐日气象数据")
@@ -30,6 +40,7 @@ def parse_args():
     return p.parse_args()
 
 def main():
+    configure_logging()
     args = parse_args()
     daily_vars: Optional[List[str]] = None
     if args.daily:
