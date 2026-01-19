@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from pathlib import Path
 import sys
 import pandas as pd
@@ -18,7 +17,6 @@ def main():
     for c in ("ndvi_mean_daily","evi_mean","ndmi_mean","precip_7d"):
         if c not in df.columns: raise SystemExit(f"missing {c}")
 
-    # 左轴 0-1：NDVI、EVI、NDMI
     fig, ax = plt.subplots(figsize=(16,6), dpi=120)
     ax.plot(df["date"], df["ndvi_mean_daily"].clip(-0.2, 1.0), color="forestgreen", lw=1.5, label="NDVI")
     ax.plot(df["date"], df["evi_mean"].clip(-0.2, 1.0), color="tab:blue", lw=1.0, alpha=0.8, label="EVI")
@@ -26,13 +24,11 @@ def main():
     ax.set_ylim(-0.2, 1.0)
     ax.set_ylabel("Vegetation Index")
 
-    # 右轴：7日降水（正值，不取反）
     ax2 = ax.twinx()
     ax2.fill_between(df["date"], 0, df["precip_7d"], color="#cfe9ff", alpha=0.6, label="7d Precip (mm)")
     ax2.set_ylabel("7-Day Precip (mm)")
     ax2.grid(False)
 
-    # 事件散点
     if ALERTS.exists():
         ev = pd.read_csv(ALERTS, parse_dates=["date"])
         sym = {
@@ -48,7 +44,6 @@ def main():
             if not sub.empty:
                 ax.scatter(sub["date"], [0.45]*len(sub), c=col, marker=m, s=35, edgecolors="none", label=t.replace("_"," ").title())
 
-    # 图例
     h1, l1 = ax.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     ax.legend(h1+h2, l1+l2, loc="upper left", ncol=3, frameon=False)

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 fetch_indices.py
 =================
 
-This script uses the Google Earth Engine (GEE) Python API to download time‑series
+This script uses the Google Earth Engine (GEE) Python API to download time-series
 spectral indices for the region of interest (ROI) defined in ``config/config.yml``.
 The indices include NDVI, NDMI, NDRE, EVI, GNDVI and MSI, computed from the
-Sentinel‑2 Level‑2A (surface reflectance) collection.  The output is a CSV file
+Sentinel-2 Level-2A (surface reflectance) collection.  The output is a CSV file
 written to ``data/raw/indices.csv`` with one row per acquisition date and one
 column per index.
 
@@ -30,14 +29,9 @@ from __future__ import annotations
 import os
 from typing import List, Dict, Any, Optional
 
-# -----------------------------------------------------------------------------
-# Ensure the project root is on sys.path so that ``src`` can be imported when
-# running this script directly via ``python scripts/fetch_indices.py``.
-# Without this, Python may raise ``ModuleNotFoundError: No module named 'src'``.
 import sys
 from pathlib import Path
 
-# Compute the project root as the parent directory of the script's parent
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -51,10 +45,6 @@ except ImportError as exc:
         "Google Earth Engine API is required. Install with `pip install earthengine-api`."
     ) from exc
 
-# Always use manual conversion to avoid geemap computeFeatures serialization errors.
-# Geemap provides helper functions but may fail when certain properties contain
-# complex EE objects.  We ignore geemap entirely and use ``getInfo()`` to
-# convert the FeatureCollection to a pandas DataFrame.
 geemap = None
 
 from src.utils.config_loader import CFG
@@ -77,22 +67,14 @@ def authenticate_ee(project_id: Optional[str] = None) -> None:
             must be linked to a Cloud project.  See ``config/config.yml``
             (``gee.project``) or the ``EE_PROJECT`` environment variable.
     """
-    # Determine the project to use: prefer the explicit argument, then
-    # environment variable.  An empty string is treated as no project.
     project = project_id or os.environ.get('EE_PROJECT') or None
     try:
         if project:
-            # Explicitly specify the project when initializing.  If the user
-            # has not enabled a default project, this is required.
             ee.Initialize(project=project)
         else:
-            # Use default initialization (may work if a default project is
-            # configured in the EE account settings).
             ee.Initialize()
     except Exception:
-        # If initialization fails, fall back to interactive authentication.
         ee.Authenticate()
-        # Retry initialization with the project if available.
         if project:
             ee.Initialize(project=project)
         else:
@@ -100,17 +82,17 @@ def authenticate_ee(project_id: Optional[str] = None) -> None:
 
 
 def mask_s2_sr_clouds(img: ee.Image) -> ee.Image:
-    """Mask clouds and cirrus based on the QA60 band of Sentinel‑2 SR.
+    """Mask clouds and cirrus based on the QA60 band of Sentinel-2 SR.
 
     Args:
-        img: A Sentinel‑2 surface reflectance image.
+        img: A Sentinel-2 surface reflectance image.
 
     Returns:
         The image with cloudy pixels masked out.
     """
     qa = img.select('QA60')
-    cloud_bit_mask = 1 << 10  # bit 10 is clouds
-    cirrus_bit_mask = 1 << 11  # bit 11 is cirrus
+    cloud_bit_mask = 1 << 10
+    cirrus_bit_mask = 1 << 11
     mask = qa.bitwiseAnd(cloud_bit_mask).eq(0).And(
         qa.bitwiseAnd(cirrus_bit_mask).eq(0)
     )
@@ -122,31 +104,29 @@ def add_indices(img: ee.Image) -> ee.Image:
 
     The indices computed are:
 
-    - NDVI  = (B8 – B4) / (B8 + B4)
-    - NDMI  = (B8 – B11) / (B8 + B11)
-    - NDRE  = (B8 – B5) / (B8 + B5)
-    - EVI   = 2.5 * (B8 – B4) / (B8 + 6 * B4 – 7.5 * B2 + 1)
-    - GNDVI = (B8 – B3) / (B8 + B3)
+    - NDVI  = (B8 - B4) / (B8 + B4)
+    - NDMI  = (B8 - B11) / (B8 + B11)
+    - NDRE  = (B8 - B5) / (B8 + B5)
+    - EVI   = 2.5 * (B8 - B4) / (B8 + 6 * B4 - 7.5 * B2 + 1)
+    - GNDVI = (B8 - B3) / (B8 + B3)
     - MSI   = B11 / B8
 
     Args:
-        img: A Sentinel‑2 SR image.
+        img: A Sentinel-2 SR image.
 
     Returns:
         The input image with new bands attached.
     """
-    b2 = img.select('B2')  # Blue
-    b3 = img.select('B3')  # Green
-    b4 = img.select('B4')  # Red
-    b5 = img.select('B5')  # Red edge 1
-    b8 = img.select('B8')  # NIR
-    b11 = img.select('B11')  # SWIR
+    b2 = img.select('B2')
+    b3 = img.select('B3')
+    b4 = img.select('B4')
+    b5 = img.select('B5')
+    b8 = img.select('B8')
+    b11 = img.select('B11')
 
-    # Compute each index
     ndvi = b8.subtract(b4).divide(b8.add(b4)).rename('NDVI')
     ndmi = b8.subtract(b11).divide(b8.add(b11)).rename('NDMI')
     ndre = b8.subtract(b5).divide(b8.add(b5)).rename('NDRE')
-    # Avoid division by zero in EVI denominator by adding a small constant
     evi = b8.subtract(b4).multiply(2.5).divide(
         b8.add(b4.multiply(6)).subtract(b2.multiply(7.5)).add(1.0)
     ).rename('EVI')
@@ -160,14 +140,13 @@ def extract_feature(img: ee.Image, region: ee.Geometry, scale: int = 10) -> ee.F
     """Reduce an image over a region to a feature containing mean indices.
 
     Args:
-        img: A Sentinel‑2 image already containing index bands.
+        img: A Sentinel-2 image already containing index bands.
         region: An EE geometry defining the ROI.
         scale: Pixel resolution in metres for reduction (default 10 m).
 
     Returns:
         An EE Feature with properties ``date`` (string) and each index mean.
     """
-    # Format acquisition date as ISO string
     date_str = img.date().format('yyyy-MM-dd')
     stats = img.select(['NDVI', 'NDMI', 'NDRE', 'EVI', 'GNDVI', 'MSI']).reduceRegion(
         reducer=ee.Reducer.mean(),
@@ -175,7 +154,6 @@ def extract_feature(img: ee.Image, region: ee.Geometry, scale: int = 10) -> ee.F
         scale=scale,
         maxPixels=1_000_000_000,
     )
-    # Add the date to the properties
     return ee.Feature(None, stats).set('date', date_str)
 
 
@@ -186,28 +164,18 @@ def fetch_indices() -> pd.DataFrame:
     Returns a pandas DataFrame with columns ``date``, ``ndvi_mean``, ``ndmi_mean``,
     ``ndre_mean``, ``evi_mean``, ``gndvi_mean``, ``msi_mean``.
     """
-    # Authenticate GEE
-    # Read the project ID from configuration or environment.  In the
-    # ``config/config.yml`` file the GEE settings are expected under
-    # ``gee`` or ``gee_s2``.  We check both for backward compatibility.
     gee_cfg = CFG.get('gee', {}) or CFG.get('gee_s2', {}) or {}
     project_id = gee_cfg.get('project') or os.environ.get('EE_PROJECT')
     authenticate_ee(project_id)
 
-    # Read configuration
     region_cfg = CFG['region']
     period_cfg = CFG['period']
-    # Re-read gee_cfg in case ``gee`` section was present
     gee_cfg = CFG.get('gee', {}) or CFG.get('gee_s2', {}) or {}
 
-    # Ensure that start_date and end_date are strings acceptable to Earth Engine.
-    # Some YAML loaders may parse dates into Python date objects, which are not
-    # directly serializable by the EE API (causing 'Cannot encode object' errors).
     start_date = period_cfg['start_date']
     end_date = period_cfg['end_date']
-    # Convert to ISO strings if they are date/datetime objects.
     try:
-        import datetime  # Local import to avoid unused import when not needed.
+        import datetime
         if isinstance(start_date, (datetime.date, datetime.datetime)):
             start_date = start_date.isoformat()
         else:
@@ -217,73 +185,44 @@ def fetch_indices() -> pd.DataFrame:
         else:
             end_date = str(end_date)
     except Exception:
-        # Fallback: cast to string
         start_date = str(start_date)
         end_date = str(end_date)
-    roi_rect = region_cfg['roi_rectangle']  # [xmin, ymin, xmax, ymax]
+    roi_rect = region_cfg['roi_rectangle']
 
-    # Use the harmonized Sentinel‑2 SR dataset by default to avoid deprecation warnings
     collection_name = gee_cfg.get('collection', 'COPERNICUS/S2_SR_HARMONIZED')
 
-    # Define ROI geometry
     region = ee.Geometry.Rectangle(roi_rect)
 
-    # Load and filter Sentinel‑2 collection
     collection = (
         ee.ImageCollection(collection_name)
         .filterBounds(region)
         .filterDate(start_date, end_date)
-        # Filter by CLOUDY_PIXEL_PERCENTAGE if available
         .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 80))
         .map(mask_s2_sr_clouds)
         .map(add_indices)
     )
 
-    # ----------------------------------------------------------------------
-    # Compute index statistics for each image individually.
-    # Instead of mapping to a FeatureCollection and converting in bulk (which can
-    # trigger serialization issues in the Python client), iterate over the
-    # ImageCollection client‑side and request per‑image statistics.  This
-    # approach calls ``reduceRegion()`` for each image and materializes the
-    # results via ``getInfo()``.
-    # Get the number of images in the collection
     count = collection.size().getInfo()
-    # Inform the user how many images will be processed.  When running this
-    # script from a terminal, printing progress messages helps to avoid the
-    # impression that the program has frozen.  The try/except guards are
-    # included so that importing this function as a library does not
-    # inadvertently raise errors if ``print`` fails (for example in a
-    # headless environment or when redirected).
     try:
-        print(f"[INFO] {count} images found in the collection. Starting processing…")
+        print(f"[INFO] {count} images found in the collection. Starting processing...")
     except Exception:
-        # Ignore print errors silently; progress output is optional.
         pass
     img_list = collection.toList(count)
-    # Prepare list of records
     records: List[Dict[str, Any]] = []
     for i in range(count):
-        # Print progress periodically: on the first iteration, every 10th image
-        # thereafter, and the final image.  This provides visibility into
-        # long‑running operations without flooding the console.  The try/except
-        # avoids raising exceptions if ``print`` encounters an issue (such as
-        # when stdout is unavailable).
         if (i == 0) or ((i + 1) % 10 == 0) or (i + 1 == count):
             try:
-                print(f"[INFO] Processing image {i + 1}/{count}…")
+                print(f"[INFO] Processing image {i + 1}/{count}...")
             except Exception:
                 pass
         img = ee.Image(img_list.get(i))
-        # Acquisition date as ISO string
         date_str: str = img.date().format('yyyy-MM-dd').getInfo()  # type: ignore
-        # Compute mean of each index within the ROI
         stats: Dict[str, Any] = img.select(['NDVI', 'NDMI', 'NDRE', 'EVI', 'GNDVI', 'MSI']).reduceRegion(
             reducer=ee.Reducer.mean(),
             geometry=region,
             scale=10,
             maxPixels=1_000_000_000,
         ).getInfo()
-        # Build record with date and each index mean
         record: Dict[str, Any] = {'date': date_str}
         for orig_name, out_name in [
             ('NDVI', 'ndvi_mean'),
@@ -299,7 +238,6 @@ def fetch_indices() -> pd.DataFrame:
 
     df = pd.DataFrame(records)
 
-    # Rename columns to match naming convention
     rename_map = {
         'NDVI': 'ndvi_mean',
         'NDMI': 'ndmi_mean',
@@ -310,11 +248,9 @@ def fetch_indices() -> pd.DataFrame:
     }
     df = df.rename(columns=rename_map)
 
-    # Convert date column to datetime and sort
     df['date'] = pd.to_datetime(df['date'])
     df = df.sort_values('date').reset_index(drop=True)
 
-    # Cast numeric columns to floats
     for col in rename_map.values():
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')

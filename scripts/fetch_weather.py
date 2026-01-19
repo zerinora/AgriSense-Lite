@@ -1,15 +1,12 @@
-# -*- coding: utf-8 -*-
 """
 scripts/fetch_weather.py
 ------------------------
 命令行入口：读取 config.yml，支持传参覆盖，写出 data/raw/weather.csv + weather_meta.json
 """
-# --- 把项目根加入 sys.path（手动法） ---
 import sys
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-# --------------------------------------
 
 from src.fetch.open_meteo import fetch_and_save
 from src.utils.config_loader import CFG, WEATHER_CSV

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Utility to merge weather and remote‑sensing indices.
 
@@ -84,21 +83,12 @@ def merge_weather_ndvi(
         The path to the written ``merged.csv`` file.
     """
 
-    # 1) Read the weather and remote‑sensing tables.  We support both
-    # legacy NDVI-only files and newer multi-index files.  The underlying
-    # config loader ensures that NDVI_CSV and INDICES_CSV point to the
-    # appropriate file on disk.
     w = pd.read_csv(WEATHER_CSV)
-    # Use INDICES_CSV for clarity (identical to NDVI_CSV)
     n = pd.read_csv(INDICES_CSV)
 
-    # 2) 日期 → datetime（只取日期部分）
     w["date"] = pd.to_datetime(w["date"]).dt.date
     n["date"] = pd.to_datetime(n["date"]).dt.date
 
-    # 3) NDVI quality control: only mask when a cloud_frac column exists.
-    # This keeps backward compatibility with older NDVI exports while not
-    # requiring this column in newer multi-index tables.
     if "cloud_frac" in n.columns:
         cols_to_mask = [
             c
@@ -111,10 +101,6 @@ def merge_weather_ndvi(
         ]
         n.loc[n["cloud_frac"] > cloud_frac_max, cols_to_mask] = pd.NA
 
-    # 4) Only retain the columns we care about.  We drop intermediate
-    # Sentinel‑2 metadata (n_obs, window_start, etc.) because the new
-    # indices export does not provide them.  If these columns exist they
-    # will be kept; otherwise they are silently ignored.
     base_cols = [
         "date",
         "ndvi_mean",
@@ -125,37 +111,28 @@ def merge_weather_ndvi(
     keep = base_cols + extra_indices
     n = n[[c for c in keep if c in n.columns]].copy()
 
-    # 5) left join（天气为主轴）
-    df = pd.merge(w, n, on="date", how="left")  # how="left" = 左连接（保留天气表全部日期）
+    df = pd.merge(w, n, on="date", how="left")
 
-    # 6) 索引化日期，排序
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date").set_index("date")
 
-    # 7) 可选：把 NDVI 插值到逐日
     if interpolate_ndvi and "ndvi_mean" in df.columns:
-        # time/linear 插值，随后裁剪到物理范围
         ndvi_daily = df["ndvi_mean"].interpolate(method="time").ffill().bfill()
         lo, hi = clip_ndvi
         df["ndvi_mean_daily"] = ndvi_daily.clip(lo, hi)
     elif "ndvi_mean" in df.columns:
         df["ndvi_mean_daily"] = df["ndvi_mean"]
 
-    # 8) 派生气象特征：滚动降水、均温、相对湿度
-    # 7 日降水累计
     if "precipitation_sum" in df.columns:
         df["precip_7d"] = df["precipitation_sum"].rolling(7, min_periods=1).sum()
 
-    # 7 日平均气温
     if {"temperature_2m_max", "temperature_2m_min"} <= set(df.columns):
         df["tmean"] = (df["temperature_2m_max"] + df["temperature_2m_min"]) / 2.0
         df["tmean_7d"] = df["tmean"].rolling(7, min_periods=1).mean()
 
-    # 7 日平均相对湿度（若存在）
     if "relative_humidity_2m_mean" in df.columns:
         df["rh_7d"] = df["relative_humidity_2m_mean"].rolling(7, min_periods=1).mean()
 
-    # 9) 输出
     DATA_PROCESSED.mkdir(parents=True, exist_ok=True)
     df.to_csv(MERGED_CSV, index=True, encoding="utf-8", float_format="%.4f")
     return MERGED_CSV

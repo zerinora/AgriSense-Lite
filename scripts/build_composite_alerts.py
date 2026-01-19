@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 from pathlib import Path
 import sys
 
@@ -7,7 +6,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from analysis.composite_alerts import run  # noqa
+from analysis.composite_alerts import run
 
 if __name__ == "__main__":
     out = run()

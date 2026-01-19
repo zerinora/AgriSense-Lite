@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 open_meteo.py
 --------------
@@ -19,7 +18,6 @@ from src.utils.config_loader import CFG, WEATHER_CSV, DATA_RAW, LOGS
 
 ARCHIVE_API = "https://archive-api.open-meteo.com/v1/era5"
 
-# 最小安全集（大多数接口都支持）
 MIN_DAILY_VARS = ["temperature_2m_max", "temperature_2m_min", "precipitation_sum"]
 
 def _setup_logger() -> logging.Logger:
@@ -86,7 +84,6 @@ def fetch_and_save(
     """
     logger = _setup_logger()
 
-    # 1) 参数来源：config.yml 为底，传参覆盖
     region = CFG["region"]
     period = CFG["period"]
     om = CFG["open_meteo"]
@@ -104,7 +101,6 @@ def fetch_and_save(
     logger.info(f"变量：{daily_vars}")
     logger.info(f"输出：{outfile_path}")
 
-    # 2) 请求：先用配置变量，失败则退回最小集
     tried_minimal = False
     try:
         payload = _request_daily(lat, lon, start_date, end_date, daily_vars, timezone)
@@ -116,15 +112,12 @@ def fetch_and_save(
         effective_daily = MIN_DAILY_VARS
         tried_minimal = True
 
-    # 3) JSON → DataFrame
     df = _json_to_df(payload)
 
-    # 4) 保存 CSV
     DATA_RAW.mkdir(parents=True, exist_ok=True)
     df.to_csv(outfile_path, index=False, float_format="%.3f", encoding="utf-8")
     logger.info(f"CSV 已保存：{outfile_path}（{len(df)} 天）")
 
-    # 5) 保存 Raw JSON（可追溯）
     meta_json_path = DATA_RAW / "weather_meta.json"
     raw_json_path = DATA_RAW / "weather_raw.json"
     units = payload.get("daily_units", {})
