@@ -108,6 +108,14 @@ composite_alerts:
   gndvi_low: 0.5
   # 热/冷胁迫：NDVI 7 天下跌阈值
   slope7_drop: -0.03
+  # 生长季 gating 模式：canopy_obs / month_window / both
+  gating_mode: "canopy_obs"
+  # 生长季 gating：连续满足 NDVI/EVI 阈值的观测次数
+  canopy_obs_min: 2
+  # 生长季月份窗口（方案 B）
+  gating_months: [4, 5, 6, 7, 8, 9, 10]
+  # 事件合并：允许的间断天数（连续事件合并）
+  merge_gap_days: 1
 
 # GEE 项目设置
 gee:
