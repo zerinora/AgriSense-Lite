@@ -1,13 +1,12 @@
 ﻿# AgriSense-Lite · 智慧农业轻量化监测流水线
 
-AgriSense-Lite 是一个轻量化的智慧农业监测原型：融合 ERA5 日尺度气象与 Sentinel-2 遥感指数，构建 NDVI 季节基线，并识别干旱、水涝、热/冷胁迫、营养/病虫等异常。
+AgriSense-Lite 是一个轻量化的智慧农业监测原型：融合 ERA5 日尺度气象与 Sentinel-2 遥感指数，识别干旱、水涝、热/冷胁迫、营养/病虫等异常。
 
 ## 功能概览
 
 - 获取 ERA5 气象日表（Open-Meteo）
 - 通过 GEE 拉取 Sentinel-2 指数（NDVI/NDMI/NDRE/EVI/GNDVI/MSI）
 - 合并气象与遥感为日尺度总表
-- （可选）构建 NDVI DOY 基线并检测偏离告警
 - 复合事件判定与可视化/报告输出
 
 ## 目录结构
@@ -16,7 +15,7 @@ AgriSense-Lite 是一个轻量化的智慧农业监测原型：融合 ERA5 日�
 - **scripts/** 可执行入口（命令行外壳），解析参数后调用 src
 - **config/** 参数中心（研究区、时间段、路径、变量、阈值），**只改这里**
 - **data/raw/** 原始层（外部接口/首次导出的第一落地），**禁止手改**
-- **data/processed/** 处理层（清洗/合并/派生后的分析基线，可由代码重建）
+- **data/processed/** 处理层（清洗/合并/派生后的分析结果，可由代码重建）
 - **notebooks/** 探索、可视化与出图（尽量调用 src）
 - **docs/** 报告、计划书、PPT 等文档
 - **assets/** 图片、底图、Logo 等静态资源
