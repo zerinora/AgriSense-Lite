@@ -1,55 +1,66 @@
-# 配置文件：修改这里即可调整运行参数（所有路径默认相对项目根目录）
+﻿# Configuration file for AgriSense-Lite.
+# 配置说明：尽量用中文注释标清口径与用途，便于复现与交付。
 
-# 项目元数据
 project:
-  # 项目名称
   name: "AgriSense-Lite"
-  # 配置版本
   version: 1
 
-# 区域设置
 region:
-  # 区域标识
-  id: "SCXJ_Baodun_6x6km"
-  # 区域名称
-  name: "四川·新津·宝墩 6×6km"
-  # 中心纬度（十进制）
-  center_lat: 30.433
-  # 中心经度（十进制）
-  center_lon: 103.75
-  # ROI 矩形范围 [xmin, ymin, xmax, ymax]
-  roi_rectangle: [103.72, 30.403, 103.78, 30.463]
-  # 时区（例如 Asia/Shanghai）
+  # 区域唯一标识与展示名称。
+  id: "CDWJ_Test_6x6km"
+  name: "Chengdu Wenjiang Test 6x6km"
+  # 可选说明字段（用于报告展示或备注）。
+  admin_note: "可行性验证用：成都温江附近；用于验证ROI与data/report范围分离"
+  landcover_note: "成都平原农田/城郊混合（验证稳定数据源）"
+  roi_note: "仅用矩形ROI；polygon留空验证回退逻辑"
+  # 区域中心点（纬度/经度）与矩形 ROI。
+  center_lat: 30.702
+  center_lon: 103.856
+  # 可选：多边形 ROI（GeoJSON 路径，优先级高于 roi_rectangle）。
+  roi_polygon_geojson: ""
+  # 矩形 ROI（兼容旧逻辑），顺序为 [minLon, minLat, maxLon, maxLat]。
+  # 约 6×6km（经纬度换算近似），覆盖温江周边一块区域
+  roi_rectangle: [103.826, 30.672, 103.886, 30.732]
+  # 时区用于日期对齐。
   timezone: "Asia/Shanghai"
 
-# 时间范围（YYYY-MM-DD）
 period:
-  # 开始日期
-  start_date: "2019-01-01"
-  # 结束日期
-  end_date: "2025-10-01"
+  # 数据范围（闭区间）：控制拉取/合并（Stage01）。
+  data_start: "2023-01-01"
+  data_end: "2025-10-01"
+  # 报告范围（闭区间）：控制统计/图表/报告（Stage03-05）。
+  # 故意缩小：用来验证“merged仍全量，但报告只统计这一年”
+  report_start: "2023-01-01"
+  report_end: "2025-10-01"
 
-# 输出路径（相对项目根目录）
+
 paths:
-  # 原始数据目录
+  # 目录路径（相对仓库根目录）。
   data_raw: "data/raw"
-  # 处理后数据目录
   data_processed: "data/processed"
-  # 图表/报告输出目录
   assets: "assets"
-  # 日志目录
   logs: "logs"
 
-# 日志设置
 logging:
-  # 日志级别：DEBUG / INFO / WARNING / ERROR
+  # 日志级别：DEBUG/INFO/WARNING/ERROR。
   level: "INFO"
+  # 输出到控制台与文件。
+  to_console: true
+  to_file: true
+  # 日志目录。
+  dir: "logs"
+  # 轮转方式：daily(按天，默认) / size(按大小)。
+  rotate: "daily"
+  # 按天轮转时的参数。
+  when: "midnight"
+  interval: 1
+  backup_count: 14
+  # 按大小轮转时的最大字节数。
+  max_bytes: 5000000
 
-# 气象数据源（Open-Meteo / ERA5）
 open_meteo:
-  # 接口类型（archive-api 为 ERA5 历史回析）
+  # Open-Meteo API 类型与逐日变量。
   api: "archive-api"
-  # 日尺度变量列表
   daily_vars:
     - temperature_2m_max
     - temperature_2m_min
@@ -57,71 +68,74 @@ open_meteo:
     - shortwave_radiation_sum
     - wind_speed_10m_max
     - relative_humidity_2m_mean
-  # 气象输出 CSV 路径
   outfile: "data/raw/weather.csv"
 
-# Sentinel-2 设置（GEE）
 gee_s2:
-  # 历史占位字段（保留）
-  gee_s2:
-  # Sentinel-2 SR 数据集
+  # GEE Sentinel-2 数据集与导出路径。
   collection: "COPERNICUS/S2_SR_HARMONIZED"
-  # 指数输出 CSV 路径
   indices_outfile: "data/raw/indices.csv"
-  # 旧 NDVI 输出路径（可选）
-  # ndvi_outfile: data/raw/ndvi.csv
 
-# 合并输出
 merge:
-  # 合并输出 CSV 路径
-  outfile: "data/processed/merged.csv"
-  # 合并主键（通常为 date）
+  # 日序列底表输出路径与合并键。
+  outfile: "data/processed/01_merged.csv"
   join_key: "date"
 
-# 复合告警阈值（按事件类型）
-composite_alerts:
-  # 冠层判定：NDVI 阈值
-  ndvi_crop: 0.45
-  # 冠层判定：EVI 阈值
-  evi_crop: 0.35
-  # 遥感有效期（天）
-  rs_max_age: 5
-  # 干旱：NDMI 低阈值
-  ndmi_dry: 0.2
-  # 干旱：MSI 高阈值
-  msi_dry: 1.5
-  # 干旱：7 日降水低阈值（mm）
-  precip_low7: 15.0
-  # 水涝：NDMI 高阈值
-  ndmi_wet: 0.45
-  # 水涝：7 日降水高阈值（mm）
-  precip_high7: 60.0
-  # 热胁迫：7 日均温阈值（°C）
-  heat_tmean7: 30.0
-  # 热胁迫：7 日相对湿度低阈值（%）
-  heat_rh7: 60.0
-  # 冷胁迫：7 日最低气温阈值（°C）
-  cold_tmin7: 3.0
-  # 营养/病虫：NDRE 低阈值
-  ndre_low: 0.3
-  # 营养/病虫：GNDVI 低阈值
-  gndvi_low: 0.5
-  # 热/冷胁迫：NDVI 7 天下跌阈值
-  slope7_drop: -0.03
-  # 生长季 gating 模式：canopy_obs / month_window / both
-  gating_mode: "canopy_obs"
-  # 生长季 gating：连续满足 NDVI/EVI 阈值的观测次数
+remote_sensing:
+  # 遥感支撑窗口半径（±window_half_days，含当天）。
+  window_half_days: 3
+  # symmetric(前后) / past_only(仅过去，适合实时)。
+  window_mode: "symmetric"
+  # nearest(距离最近) / prefer_past(同距优先过去)。
+  support_pick: "nearest"
+
+# Gating（门禁/资格筛选）只决定日期资格，不改变告警阈值。
+gating:
+  # off / month_window / canopy_obs / both
+  mode: "both"
+  # 生长季月份窗口。
+  months: [3,4, 5, 6, 7, 8, 9, 10,11]
+  # 冠层就绪最少观测次数与阈值。
   canopy_obs_min: 2
-  # 生长季月份窗口（方案 B）
+  canopy_ndvi_min: 0.45
+  canopy_evi_min: 0.35
+
+composite_alerts:
+  # 阶段输出（按 01-05 顺序）。
+  outfile_debug: "data/processed/02_rs_debug.csv"
+  outfile_raw: "data/processed/03_alerts_raw.csv"
+  outfile: "data/processed/04_alerts_gated.csv"
+  outfile_merged: "data/processed/05_events.csv"
+
+  # 冠层阈值（规则与门禁共用的口径）。
+  ndvi_crop: 0.45
+  evi_crop: 0.35
+
+  # Deprecated：由 remote_sensing.window_* 替代，仅保留兼容。
+  rs_max_age: 5
+
+  # 干旱/水涝/冷热/营养病虫规则阈值。
+  ndmi_dry: 0.15
+  msi_dry: 1.7
+  precip_low7: 10.0
+  ndmi_wet: 0.40
+  precip_high7: 45.0
+  heat_tmean7: 30.0
+  heat_rh7: 70.0
+  cold_tmin7: 5.0
+  ndre_low: 0.35
+  gndvi_low: 0.55
+  slope7_drop: -0.03
+
+  # 兼容项：优先使用 gating.mode/gating.months。
+  gating_mode: "both"
+  canopy_obs_min: 2
   gating_months: [4, 5, 6, 7, 8, 9, 10]
-  # 事件合并：允许的间断天数（连续事件合并）
+
+  # 事件合并的允许间隔天数。
   merge_gap_days: 1
 
-# GEE 项目设置
 gee:
-  # GCP Project ID（必填；可用 EE_PROJECT 覆盖）
+  # GEE 项目与云量过滤。
   project: "zz-smileangle"
-  # Sentinel-2 SR 数据集
   collection: "COPERNICUS/S2_SR_HARMONIZED"
-  # 云量过滤阈值（%）
   cloud_pct_max: 80

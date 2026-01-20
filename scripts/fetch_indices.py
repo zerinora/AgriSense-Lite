@@ -27,6 +27,8 @@ indices, adjust the ``add_indices`` function below.
 from __future__ import annotations
 
 import os
+import logging
+import json
 from typing import List, Dict, Any, Optional
 
 import sys
@@ -48,6 +50,7 @@ except ImportError as exc:
 geemap = None
 
 from src.utils.config_loader import CFG
+from src.utils.logging_utils import setup_logging_from_cfg
 
 
 def authenticate_ee(project_id: Optional[str] = None) -> None:
@@ -187,11 +190,12 @@ def fetch_indices() -> pd.DataFrame:
     except Exception:
         start_date = str(start_date)
         end_date = str(end_date)
-    roi_rect = region_cfg['roi_rectangle']
+    roi_rect = region_cfg.get('roi_rectangle')
+    polygon_path = region_cfg.get('roi_polygon_geojson') or None
 
     collection_name = gee_cfg.get('collection', 'COPERNICUS/S2_SR_HARMONIZED')
 
-    region = ee.Geometry.Rectangle(roi_rect)
+    region = _resolve_roi_geometry(roi_rect, polygon_path)
 
     collection = (
         ee.ImageCollection(collection_name)
@@ -258,14 +262,41 @@ def fetch_indices() -> pd.DataFrame:
     return df
 
 
+def _resolve_roi_geometry(roi_rect, polygon_path):
+    if polygon_path:
+        path = Path(polygon_path)
+        if not path.is_absolute():
+            path = (ROOT / path).resolve()
+        with open(path, "r", encoding="utf-8") as f:
+            geo = json.load(f)
+        geom = geo.get("geometry") or {}
+        if geo.get("type") == "Feature":
+            geom = geo.get("geometry") or {}
+        if geo.get("type") == "FeatureCollection":
+            features = geo.get("features") or []
+            geom = (features[0] or {}).get("geometry") or {}
+        gtype = geom.get("type")
+        coords = geom.get("coordinates")
+        if gtype == "Polygon":
+            return ee.Geometry.Polygon(coords)
+        if gtype == "MultiPolygon":
+            return ee.Geometry.MultiPolygon(coords)
+        raise ValueError("roi_polygon_geojson must be Polygon or MultiPolygon")
+    if not roi_rect:
+        raise ValueError("roi_rectangle is required when roi_polygon_geojson is not set")
+    return ee.Geometry.Rectangle(roi_rect)
+
+
 def main() -> None:
     """Entry point for script execution."""
+    setup_logging_from_cfg(CFG, app_name="fetch_indices")
+    logger = logging.getLogger(__name__)
     df = fetch_indices()
     outdir = os.path.join(CFG['paths']['data_raw'])
     os.makedirs(outdir, exist_ok=True)
     outfile = os.path.join(outdir, 'indices.csv')
     df.to_csv(outfile, index=False, encoding='utf-8', float_format='%.4f')
-    print(f"[OK] Spectral indices saved to {outfile}")
+    logger.info("Spectral indices saved to %s", outfile)
 
 
 if __name__ == '__main__':

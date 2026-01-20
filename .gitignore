@@ -9,6 +9,8 @@ data/raw/*.json
 data/raw/*.zip
 data/processed/*.csv
 data/processed/*.png
+data/processed/*.summary.json
+data/processed/stage_summary.json
 # Logs
 logs/
 *.log

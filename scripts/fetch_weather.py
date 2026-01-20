@@ -1,46 +1,51 @@
+﻿"""
+Fetch daily weather data and save CSV + metadata.
 """
-scripts/fetch_weather.py
-------------------------
-命令行入口：读取 config.yml，支持传参覆盖，写出 data/raw/weather.csv + weather_meta.json
-"""
-import sys
-import logging
-from pathlib import Path
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from src.fetch.open_meteo import fetch_and_save
-from src.utils.config_loader import CFG, WEATHER_CSV
+from __future__ import annotations
 
 import argparse
+import logging
+import sys
+from pathlib import Path
 from typing import List, Optional
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from src.fetch.open_meteo import fetch_and_save
 from src.utils.config_loader import CFG, WEATHER_CSV
+from src.utils.logging_utils import setup_logging_from_cfg
 
-def configure_logging():
-    log_cfg = CFG.get("logging", {})
-    level_name = str(log_cfg.get("level", "INFO")).upper()
-    level = getattr(logging, level_name, logging.INFO)
-    logging.basicConfig(
-        level=level,
-        format="[%(asctime)s] %(levelname)s - %(message)s",
+
+def configure_logging() -> str:
+    return setup_logging_from_cfg(CFG, app_name="fetch_weather")
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Fetch daily weather from Open-Meteo")
+    parser.add_argument("--lat", type=float, help="Latitude (override config)")
+    parser.add_argument("--lon", type=float, help="Longitude (override config)")
+    parser.add_argument("--start", type=str, help="Start date YYYY-MM-DD")
+    parser.add_argument("--end", type=str, help="End date YYYY-MM-DD (inclusive)")
+    parser.add_argument("--timezone", type=str, help="Timezone, e.g. Asia/Shanghai")
+    parser.add_argument(
+        "--daily",
+        type=str,
+        help="Comma-separated daily variables (override config)",
     )
+    parser.add_argument(
+        "--outfile",
+        type=str,
+        help="Output CSV path (override config)",
+    )
+    parser.add_argument("--no-raw-json", action="store_true", help="Skip raw JSON")
+    return parser.parse_args()
 
-def parse_args():
-    p = argparse.ArgumentParser(description="从 Open-Meteo ERA5 获取逐日气象数据")
-    p.add_argument("--lat", type=float, help="纬度（可覆盖 config.yml）")
-    p.add_argument("--lon", type=float, help="经度（可覆盖 config.yml）")
-    p.add_argument("--start", type=str, help="开始日期 YYYY-MM-DD")
-    p.add_argument("--end", type=str, help="结束日期 YYYY-MM-DD（包含）")
-    p.add_argument("--timezone", type=str, help="时区，例如 Asia/Shanghai 或 auto")
-    p.add_argument("--daily", type=str, help="逗号分隔的日变量名列表（覆盖 config）")
-    p.add_argument("--outfile", type=str, help="输出 CSV 相对路径（默认使用 config 的 data/raw/weather.csv）")
-    p.add_argument("--no-raw-json", action="store_true", help="不保存原始响应 JSON")
-    return p.parse_args()
 
-def main():
+def main() -> None:
     configure_logging()
+    logger = logging.getLogger(__name__)
     args = parse_args()
     daily_vars: Optional[List[str]] = None
     if args.daily:
@@ -54,15 +59,16 @@ def main():
         daily_vars=daily_vars,
         timezone=args.timezone,
         outfile=args.outfile,
-        save_raw_json=not args.no_raw_json
+        save_raw_json=not args.no_raw_json,
     )
 
-    print("\n=== 任务完成 ===")
-    print("写入 CSV：", WEATHER_CSV)
-    print("元数据：  ", (WEATHER_CSV.parent / "weather_meta.json"))
-    print("有效变量：", meta["effective_daily_vars"])
+    logger.info("Task complete")
+    logger.info("CSV: %s", WEATHER_CSV)
+    logger.info("Meta: %s", (WEATHER_CSV.parent / "weather_meta.json"))
+    logger.info("Effective vars: %s", meta.get("effective_daily_vars"))
     if meta.get("fallback_used"):
-        print("注意：已自动降级为最小变量集合（可在 config.yml 调整 daily_vars 后重试）。")
+        logger.warning("Fallback to minimal variables was used")
+
 
 if __name__ == "__main__":
     main()

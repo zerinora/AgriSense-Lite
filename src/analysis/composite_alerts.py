@@ -1,65 +1,146 @@
+from __future__ import annotations
+
 from pathlib import Path
 import pandas as pd
 import numpy as np
 
 try:
-    from src.utils.config_loader import CFG
+    from src.utils.config_loader import (
+        CFG,
+        MERGED_CSV,
+        ALERTS_GATED_CSV,
+        ALERTS_RAW_CSV,
+        ALERTS_MERGED_CSV,
+        RS_DEBUG_CSV,
+    )
 except ImportError:
-    from utils.config_loader import CFG
+    from utils.config_loader import (
+        CFG,
+        MERGED_CSV,
+        ALERTS_GATED_CSV,
+        ALERTS_RAW_CSV,
+        ALERTS_MERGED_CSV,
+        RS_DEBUG_CSV,
+    )
 
-ROOT = Path(__file__).resolve().parents[2]
-MERGED = ROOT / "data/processed/merged.csv"
-OUT = ROOT / "data/processed/alerts_composite.csv"
-OUT_RAW = ROOT / "data/processed/alerts_composite_raw.csv"
-OUT_MERGED = ROOT / "data/processed/alerts_composite_merged.csv"
-OUT_DEBUG = ROOT / "data/processed/rs_debug.csv"
+MERGED = MERGED_CSV
+OUT = ALERTS_GATED_CSV
+OUT_RAW = ALERTS_RAW_CSV
+OUT_MERGED = ALERTS_MERGED_CSV
+OUT_DEBUG = RS_DEBUG_CSV
 
-_ALERT_CFG = CFG.get("composite_alerts", {})
+_ALERT_CFG = CFG.get("composite_alerts", {}) if isinstance(CFG, dict) else {}
+_RS_CFG = CFG.get("remote_sensing", {}) if isinstance(CFG, dict) else {}
+_GATING_CFG = CFG.get("gating", {}) if isinstance(CFG, dict) else {}
 
 
-def _cfg_value(key: str, default):
-    value = _ALERT_CFG.get(key, default)
+def _cfg_value(cfg: dict, key: str, default):
+    value = cfg.get(key, default) if isinstance(cfg, dict) else default
     return default if value is None else value
 
 
-NDVI_CROP = float(_cfg_value("ndvi_crop", 0.45))
-EVI_CROP = float(_cfg_value("evi_crop", 0.35))
-RS_MAX_AGE = int(_cfg_value("rs_max_age", 5))
+NDVI_CROP = float(_cfg_value(_ALERT_CFG, "ndvi_crop", 0.45))
+EVI_CROP = float(_cfg_value(_ALERT_CFG, "evi_crop", 0.35))
+RS_MAX_AGE = int(_cfg_value(_ALERT_CFG, "rs_max_age", 5))
 
-NDMI_DRY = float(_cfg_value("ndmi_dry", 0.20))
-MSI_DRY = float(_cfg_value("msi_dry", 1.50))
-PRECIP_LOW7 = float(_cfg_value("precip_low7", 15.0))
-NDMI_WET = float(_cfg_value("ndmi_wet", 0.45))
-PRECIP_HIGH7 = float(_cfg_value("precip_high7", 60.0))
+WINDOW_HALF_DAYS = int(_cfg_value(_RS_CFG, "window_half_days", RS_MAX_AGE))
+WINDOW_MODE = str(_cfg_value(_RS_CFG, "window_mode", "symmetric")).strip().lower()
+SUPPORT_PICK = str(_cfg_value(_RS_CFG, "support_pick", "nearest")).strip().lower()
 
-HEAT_TMEAN7 = float(_cfg_value("heat_tmean7", 30.0))
-HEAT_RH7 = float(_cfg_value("heat_rh7", 60.0))
-COLD_TMIN7 = float(_cfg_value("cold_tmin7", 3.0))
+GATING_MODE = str(
+    _cfg_value(_GATING_CFG, "mode", _cfg_value(_ALERT_CFG, "gating_mode", "both"))
+).strip().lower()
+CANOPY_OBS_MIN = int(
+    _cfg_value(_GATING_CFG, "canopy_obs_min", _cfg_value(_ALERT_CFG, "canopy_obs_min", 2))
+)
+_canopy_ndvi = _cfg_value(_GATING_CFG, "canopy_ndvi_min", NDVI_CROP)
+_canopy_evi = _cfg_value(_GATING_CFG, "canopy_evi_min", EVI_CROP)
+CANOPY_NDVI_MIN = float(_canopy_ndvi)
+CANOPY_EVI_MIN = float(_canopy_evi)
 
-NDRE_LOW = float(_cfg_value("ndre_low", 0.30))
-GNDVI_LOW = float(_cfg_value("gndvi_low", 0.50))
-
-SLOPE7_DROP = float(_cfg_value("slope7_drop", -0.03))
-
-GATING_MODE = str(_cfg_value("gating_mode", "canopy_obs")).strip().lower()
-CANOPY_OBS_MIN = int(_cfg_value("canopy_obs_min", 2))
-_gating_months = _cfg_value("gating_months", [4, 5, 6, 7, 8, 9, 10])
+_gating_months = _cfg_value(
+    _GATING_CFG,
+    "months",
+    _cfg_value(_ALERT_CFG, "gating_months", [4, 5, 6, 7, 8, 9, 10]),
+)
 if isinstance(_gating_months, (list, tuple)):
     GATING_MONTHS = [int(m) for m in _gating_months]
 else:
     GATING_MONTHS = [int(_gating_months)]
-MERGE_GAP_DAYS = int(_cfg_value("merge_gap_days", 1))
 
-REMOTE_OBS_COLS = (
-    "ndvi_mean",
-    "evi_mean",
-    "ndmi_mean",
-    "ndre_mean",
-    "gndvi_mean",
-    "msi_mean",
-)
+NDMI_DRY = float(_cfg_value(_ALERT_CFG, "ndmi_dry", 0.20))
+MSI_DRY = float(_cfg_value(_ALERT_CFG, "msi_dry", 1.50))
+PRECIP_LOW7 = float(_cfg_value(_ALERT_CFG, "precip_low7", 15.0))
+NDMI_WET = float(_cfg_value(_ALERT_CFG, "ndmi_wet", 0.45))
+PRECIP_HIGH7 = float(_cfg_value(_ALERT_CFG, "precip_high7", 60.0))
 
-def _finite(row: pd.Series, *cols: str) -> bool:
+HEAT_TMEAN7 = float(_cfg_value(_ALERT_CFG, "heat_tmean7", 30.0))
+HEAT_RH7 = float(_cfg_value(_ALERT_CFG, "heat_rh7", 60.0))
+COLD_TMIN7 = float(_cfg_value(_ALERT_CFG, "cold_tmin7", 3.0))
+
+NDRE_LOW = float(_cfg_value(_ALERT_CFG, "ndre_low", 0.30))
+GNDVI_LOW = float(_cfg_value(_ALERT_CFG, "gndvi_low", 0.50))
+
+SLOPE7_DROP = float(_cfg_value(_ALERT_CFG, "slope7_drop", -0.03))
+MERGE_GAP_DAYS = int(_cfg_value(_ALERT_CFG, "merge_gap_days", 1))
+
+METRIC_DEFS = {
+    "ndvi": {
+        "obs": ["ndvi_obs", "ndvi_mean"],
+        "fill": ["ndvi_fill", "ndvi_mean_daily", "ndvi_mean"],
+    },
+    "evi": {
+        "obs": ["evi_obs", "evi_mean"],
+        "fill": ["evi_fill", "evi_mean"],
+    },
+    "ndmi": {
+        "obs": ["ndmi_obs", "ndmi_mean"],
+        "fill": ["ndmi_fill", "ndmi_mean"],
+    },
+    "ndre": {
+        "obs": ["ndre_obs", "ndre_mean"],
+        "fill": ["ndre_fill", "ndre_mean"],
+    },
+    "gndvi": {
+        "obs": ["gndvi_obs", "gndvi_mean"],
+        "fill": ["gndvi_fill", "gndvi_mean"],
+    },
+    "msi": {
+        "obs": ["msi_obs", "msi_mean"],
+        "fill": ["msi_fill", "msi_mean"],
+    },
+}
+
+
+def _ensure_metric_columns(df: pd.DataFrame) -> pd.DataFrame:
+    for meta in METRIC_DEFS.values():
+        obs_col = meta["obs"][0]
+        if obs_col not in df.columns:
+            for candidate in meta["obs"][1:]:
+                if candidate in df.columns:
+                    df[obs_col] = df[candidate]
+                    break
+            else:
+                df[obs_col] = np.nan
+        fill_col = meta["fill"][0]
+        if fill_col not in df.columns:
+            for candidate in meta["fill"][1:]:
+                if candidate in df.columns:
+                    df[fill_col] = df[candidate]
+                    break
+            else:
+                df[fill_col] = np.nan
+    return df
+
+
+def _finite_df(df: pd.DataFrame, cols: list[str]) -> pd.Series:
+    if not cols:
+        return pd.Series(True, index=df.index)
+    values = df[cols]
+    return values.notna().all(axis=1) & np.isfinite(values).all(axis=1)
+
+
+def _finite_row(row: pd.Series, *cols: str) -> bool:
     for c in cols:
         v = row.get(c, np.nan)
         if not (pd.notna(v) and np.isfinite(v)):
@@ -67,70 +148,109 @@ def _finite(row: pd.Series, *cols: str) -> bool:
     return True
 
 
+def _pick_support_date(
+    target: pd.Timestamp,
+    obs_dates: list[pd.Timestamp],
+    window_half_days: int,
+    mode: str,
+    support_pick: str,
+) -> pd.Timestamp | None:
+    if not obs_dates:
+        return None
+
+    if mode == "past_only":
+        candidates = [
+            d
+            for d in obs_dates
+            if d <= target and 0 <= (target - d).days <= window_half_days
+        ]
+    else:
+        candidates = [d for d in obs_dates if abs((target - d).days) <= window_half_days]
+
+    if not candidates:
+        return None
+
+    deltas = [abs((target - d).days) for d in candidates]
+    min_delta = min(deltas)
+    closest = [d for d, delta in zip(candidates, deltas) if delta == min_delta]
+
+    if support_pick == "prefer_past":
+        past = [d for d in closest if d <= target]
+        if past:
+            return max(past)
+    return min(closest)
+
+
 def _canopy_ok(row: pd.Series) -> bool:
-    ndvi = row.get("ndvi_mean_daily", np.nan)
-    evi = row.get("evi_mean", np.nan)
-    age = row.get("rs_age", 9999)
+    ndvi = row.get("ndvi_fill", np.nan)
+    evi = row.get("evi_fill", np.nan)
     ok = (pd.notna(ndvi) and ndvi >= NDVI_CROP) or (pd.notna(evi) and evi >= EVI_CROP)
-    return bool(ok and (age <= RS_MAX_AGE))
-
-def _is_winter_fallow(row: pd.Series) -> bool:
-    m = row["date"].month
-    if m in (11, 12, 1, 2, 3):
-        return not _canopy_ok(row)
-    return False
+    return bool(ok)
 
 
-def _gating_ok(row: pd.Series, mode: str) -> bool:
+def _gating_mask(df: pd.DataFrame, mode: str) -> pd.Series:
     if mode == "off":
-        return True
-    rs_ok = row.get("rs_age", 9999) <= RS_MAX_AGE
+        return pd.Series(True, index=df.index)
     if mode == "month_window":
-        months = row.get("date").month
-        return bool(rs_ok and (months in set(GATING_MONTHS)))
+        return df["month_ok"].fillna(False)
     if mode == "both":
-        return bool(rs_ok and row.get("canopy_obs_ready", False) and row.get("month_ok", False))
-    return bool(rs_ok and row.get("canopy_obs_ready", False))
+        return df["month_ok"].fillna(False) & df["canopy_obs_ready"].fillna(False)
+    return df["canopy_obs_ready"].fillna(False)
 
-def _classify_row(row: pd.Series, apply_gating: bool, gating_mode: str) -> tuple[str | None, str]:
+
+def _classify_row(row: pd.Series, apply_gating: bool) -> tuple[str | None, str]:
+    if not row.get("qc_ok", False):
+        return None, ""
     if apply_gating and not row.get("gating_ok", False):
         return None, ""
 
-    if _is_winter_fallow(row):
-        return None, ""
-
-    ndvi = row["ndvi_mean_daily"]
-    evi = row["evi_mean"]
-    ndmi = row["ndmi_mean"]
-    msi = row["msi_mean"]
-    ndre = row["ndre_mean"]
-    gnd = row["gndvi_mean"]
-    p7 = row["precip_7d"]
-    t7 = row["tmean_7d"]
-    rh7 = row["rh_7d"]
+    ndvi = row.get("ndvi_fill", np.nan)
+    evi = row.get("evi_fill", np.nan)
+    ndmi = row.get("ndmi_fill", np.nan)
+    msi = row.get("msi_fill", np.nan)
+    ndre = row.get("ndre_fill", np.nan)
+    gnd = row.get("gndvi_fill", np.nan)
+    p7 = row.get("precip_7d", np.nan)
+    t7 = row.get("tmean_7d", np.nan)
+    rh7 = row.get("rh_7d", np.nan)
     tmin7 = row.get("tmin_7d", np.nan)
-    slope7 = row["ndvi_slope7"]
+    slope7 = row.get("ndvi_slope7", np.nan)
     canopy = _canopy_ok(row)
 
     trig = []
 
-    if canopy and _finite(row, "ndmi_mean", "msi_mean", "precip_7d"):
+    if canopy and _finite_row(row, "ndmi_fill", "msi_fill", "precip_7d"):
         if (ndmi < NDMI_DRY or msi > MSI_DRY) and (p7 < PRECIP_LOW7):
             trig.append(("drought", f"NDMI={ndmi:.3f}/MSI={msi:.3f}; precip_7d={p7:.1f}"))
 
-    if canopy and _finite(row, "ndmi_mean", "precip_7d", "evi_mean", "ndvi_mean_daily"):
+    if canopy and _finite_row(row, "ndmi_fill", "precip_7d", "evi_fill", "ndvi_fill"):
         if (ndmi > NDMI_WET) and (p7 > PRECIP_HIGH7) and ((evi < EVI_CROP) or (ndvi < NDVI_CROP)):
-            trig.append(("waterlogging", f"NDMI={ndmi:.3f}; precip_7d={p7:.1f}; EVI={evi:.3f}, NDVI={ndvi:.3f}"))
+            trig.append(
+                (
+                    "waterlogging",
+                    f"NDMI={ndmi:.3f}; precip_7d={p7:.1f}; EVI={evi:.3f}, NDVI={ndvi:.3f}",
+                )
+            )
 
-    if canopy and _finite(row, "tmean_7d", "rh_7d", "evi_mean", "ndvi_slope7"):
+    if canopy and _finite_row(row, "tmean_7d", "rh_7d", "evi_fill", "ndvi_slope7"):
         if (t7 >= HEAT_TMEAN7) and (rh7 <= HEAT_RH7) and ((evi < EVI_CROP) or (slope7 <= SLOPE7_DROP)):
-            trig.append(("heat_stress", f"tmean_7d={t7:.1f}°C, RH7={rh7:.0f}%, slope7={slope7:.3f}, EVI={evi:.3f}"))
+            trig.append(
+                (
+                    "heat_stress",
+                    f"tmean_7d={t7:.1f}C, RH7={rh7:.0f}%, slope7={slope7:.3f}, EVI={evi:.3f}",
+                )
+            )
 
-    if canopy and _finite(row, "tmin_7d", "evi_mean", "ndvi_mean_daily", "ndvi_slope7"):
+    if canopy and _finite_row(row, "tmin_7d", "evi_fill", "ndvi_fill", "ndvi_slope7"):
         if (tmin7 <= COLD_TMIN7) and ((evi < 0.40) or (ndvi < 0.50) or (slope7 <= SLOPE7_DROP)):
-            trig.append(("cold_stress", f"tmin_7d={tmin7:.1f}°C, EVI={evi:.3f}, NDVI={ndvi:.3f}, slope7={slope7:.3f}"))
+            trig.append(
+                (
+                    "cold_stress",
+                    f"tmin_7d={tmin7:.1f}?C, EVI={evi:.3f}, NDVI={ndvi:.3f}, slope7={slope7:.3f}",
+                )
+            )
 
-    if canopy and _finite(row, "ndre_mean", "gndvi_mean", "ndmi_mean"):
+    if canopy and _finite_row(row, "ndre_fill", "gndvi_fill", "ndmi_fill"):
         if ((ndre < NDRE_LOW) or (gnd < GNDVI_LOW)) and (ndmi >= NDMI_DRY):
             trig.append(("nutrient_or_pest", f"NDRE={ndre:.3f}, GNDVI={gnd:.3f}, NDMI={ndmi:.3f}"))
 
@@ -139,6 +259,7 @@ def _classify_row(row: pd.Series, apply_gating: bool, gating_mode: str) -> tuple
     if len(trig) >= 2:
         return "composite", " + ".join(k for k, _ in trig)
     return trig[0][0], trig[0][1]
+
 
 def _obs_streak(obs_ok: pd.Series, obs_flag: pd.Series) -> pd.Series:
     count = 0
@@ -169,16 +290,16 @@ def _merge_events(alerts: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
 
     def _intensity(row: pd.Series) -> tuple[float, str]:
         et = row["event_type"]
-        if et == "drought" and _finite(row, "ndmi_mean", "precip_7d"):
-            return (NDMI_DRY - row["ndmi_mean"]), "ndmi_mean"
-        if et == "waterlogging" and _finite(row, "ndmi_mean", "precip_7d"):
-            return (row["ndmi_mean"] - NDMI_WET), "ndmi_mean"
-        if et == "heat_stress" and _finite(row, "tmean_7d"):
+        if et == "drought" and _finite_row(row, "ndmi_fill", "precip_7d"):
+            return (NDMI_DRY - row["ndmi_fill"]), "ndmi_fill"
+        if et == "waterlogging" and _finite_row(row, "ndmi_fill", "precip_7d"):
+            return (row["ndmi_fill"] - NDMI_WET), "ndmi_fill"
+        if et == "heat_stress" and _finite_row(row, "tmean_7d"):
             return (row["tmean_7d"] - HEAT_TMEAN7), "tmean_7d"
-        if et == "cold_stress" and _finite(row, "tmin_7d"):
+        if et == "cold_stress" and _finite_row(row, "tmin_7d"):
             return (COLD_TMIN7 - row["tmin_7d"]), "tmin_7d"
-        if et == "nutrient_or_pest" and _finite(row, "ndre_mean"):
-            return (NDRE_LOW - row["ndre_mean"]), "ndre_mean"
+        if et == "nutrient_or_pest" and _finite_row(row, "ndre_fill"):
+            return (NDRE_LOW - row["ndre_fill"]), "ndre_fill"
         return (np.nan, "na")
 
     joined[["intensity", "peak_metric"]] = joined.apply(
@@ -212,11 +333,7 @@ def _merge_events(alerts: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
             peak = b.loc[idx]
         else:
             peak = b.iloc[0]
-        reasons = (
-            b["reason"].dropna().unique().tolist()
-            if "reason" in b.columns
-            else []
-        )
+        reasons = b["reason"].dropna().unique().tolist() if "reason" in b.columns else []
         reason_summary = " | ".join(reasons[:2])
         out_rows.append(
             {
@@ -235,7 +352,7 @@ def _merge_events(alerts: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
 
 
 def detect_composite_alerts(
-    df: pd.DataFrame, gating_mode: str = "canopy_obs", apply_gating: bool = True
+    df: pd.DataFrame, gating_mode: str = "both", apply_gating: bool = True
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     if "date" not in df.columns:
         raise ValueError("df must contain 'date'")
@@ -243,54 +360,74 @@ def detect_composite_alerts(
     df["date"] = pd.to_datetime(df["date"])
     df.sort_values("date", inplace=True)
 
-    needed_cols = [
-        "ndvi_mean_daily",
-        "ndvi_mean",
-        "evi_mean",
-        "ndmi_mean",
-        "msi_mean",
-        "ndre_mean",
-        "gndvi_mean",
-        "precip_7d",
-        "tmean_7d",
-        "rh_7d",
-    ]
-    for c in needed_cols:
-        if c not in df.columns:
-            df[c] = np.nan
+    df = _ensure_metric_columns(df)
 
-    df["ndvi_slope7"] = df["ndvi_mean_daily"] - df["ndvi_mean_daily"].shift(7)
+    if "precip_7d" not in df.columns and "precipitation_sum" in df.columns:
+        df["precip_7d"] = df["precipitation_sum"].rolling(7, min_periods=1).sum()
 
-    if "temperature_2m_min" in df.columns:
-        df["tmin_7d"] = df["temperature_2m_min"].rolling(7, min_periods=3).min()
-    else:
-        df["tmin_7d"] = df["tmean_7d"]
+    if "tmean_7d" not in df.columns:
+        if {"temperature_2m_max", "temperature_2m_min"} <= set(df.columns):
+            df["tmean"] = (df["temperature_2m_max"] + df["temperature_2m_min"]) / 2.0
+            df["tmean_7d"] = df["tmean"].rolling(7, min_periods=1).mean()
 
-    obs_cols = [c for c in REMOTE_OBS_COLS if c in df.columns]
+    if "rh_7d" not in df.columns and "relative_humidity_2m_mean" in df.columns:
+        df["rh_7d"] = df["relative_humidity_2m_mean"].rolling(7, min_periods=1).mean()
+
+    if "tmin_7d" not in df.columns:
+        if "temperature_2m_min" in df.columns:
+            df["tmin_7d"] = df["temperature_2m_min"].rolling(7, min_periods=3).min()
+        elif "tmean_7d" in df.columns:
+            df["tmin_7d"] = df["tmean_7d"]
+
+    if "ndvi_slope7" not in df.columns:
+        df["ndvi_slope7"] = df["ndvi_fill"] - df["ndvi_fill"].shift(7)
+
+    obs_cols = [meta["obs"][0] for meta in METRIC_DEFS.values() if meta["obs"][0] in df.columns]
     obs_flag = df[obs_cols].notna().any(axis=1) if obs_cols else pd.Series(False, index=df.index)
-    obs_ok = (df["ndvi_mean"] >= NDVI_CROP) | (df["evi_mean"] >= EVI_CROP)
+    df["real_obs_day"] = obs_flag
+
+    obs_ok = (df["ndvi_obs"] >= CANOPY_NDVI_MIN) | (df["evi_obs"] >= CANOPY_EVI_MIN)
     obs_ok = obs_ok.fillna(False)
     df["canopy_obs_streak"] = _obs_streak(obs_ok, obs_flag)
     df["canopy_obs_ready"] = df["canopy_obs_streak"] >= CANOPY_OBS_MIN
     df["month_ok"] = df["date"].dt.month.isin(list(GATING_MONTHS))
 
-    last = df["date"].where(obs_flag).ffill()
-    df["last_rs_date"] = last.dt.date
-    df["rs_age"] = (df["date"] - last).dt.days.fillna(9999).astype(int)
-    df["gating_ok"] = df.apply(lambda r: _gating_ok(r, gating_mode), axis=1)
+    obs_dates = sorted(df.loc[obs_flag, "date"].tolist())
+    support_dates = [
+        _pick_support_date(d, obs_dates, WINDOW_HALF_DAYS, WINDOW_MODE, SUPPORT_PICK)
+        for d in df["date"]
+    ]
+    support = pd.to_datetime(pd.Series(support_dates, index=df.index))
 
-    missing_weather = df[["precip_7d", "tmean_7d", "rh_7d", "tmin_7d"]].isna().any(axis=1)
-    missing_remote = ~obs_flag
+    df["rs_support_date"] = support.dt.date
+    support_age = (df["date"] - support).abs().dt.days
+    df["rs_support_age"] = support_age.fillna(9999).astype(int)
+    df["rs_window_ok"] = support.notna() & (df["rs_support_age"] <= WINDOW_HALF_DAYS)
+
+    weather_cols = [
+        c for c in ("precip_7d", "tmean_7d", "rh_7d", "tmin_7d") if c in df.columns
+    ]
+    metric_cols = [meta["fill"][0] for meta in METRIC_DEFS.values() if meta["fill"][0] in df.columns]
+
+    weather_ok = _finite_df(df, weather_cols)
+    metric_ok = _finite_df(df, metric_cols)
+
+    df["missing_weather"] = ~weather_ok
+    df["missing_remote"] = ~df["rs_window_ok"]
+    df["qc_ok"] = df["rs_window_ok"] & weather_ok & metric_ok
+
     df["skip_reason"] = np.where(
-        df["rs_age"] > RS_MAX_AGE,
-        "rs_max_age",
-        np.where(missing_remote, "missing_remote", np.where(missing_weather, "missing_weather", "ok")),
+        df["missing_remote"],
+        "missing_remote",
+        np.where(df["missing_weather"], "missing_weather", np.where(~metric_ok, "nonfinite", "ok")),
     )
-    df["allow_alert"] = (df["skip_reason"] == "ok") & (df["gating_ok"])
+
+    df["gating_ok"] = _gating_mask(df, gating_mode)
+    df["allow_alert"] = df["qc_ok"] & df["gating_ok"]
 
     rows = []
     for _, r in df.iterrows():
-        et, reason = _classify_row(r, apply_gating=apply_gating, gating_mode=gating_mode)
+        et, reason = _classify_row(r, apply_gating=apply_gating)
         if et:
             rows.append({"date": r["date"], "event_type": et, "reason": reason})
     out = pd.DataFrame(rows)
@@ -299,21 +436,29 @@ def detect_composite_alerts(
 
     debug_cols = [
         "date",
-        "last_rs_date",
-        "rs_age",
+        "real_obs_day",
+        "rs_support_date",
+        "rs_support_age",
+        "rs_window_ok",
+        "missing_remote",
+        "missing_weather",
+        "qc_ok",
+        "skip_reason",
         "canopy_obs_streak",
         "canopy_obs_ready",
         "month_ok",
         "gating_ok",
-        "skip_reason",
         "allow_alert",
     ]
     debug = df[debug_cols].copy()
     return out, debug
 
+
 def run(infile: Path = MERGED, outfile: Path = OUT) -> Path:
     df = pd.read_csv(infile, parse_dates=["date"])
-    alerts_raw, debug_raw = detect_composite_alerts(df, gating_mode="off", apply_gating=False)
+    df = _ensure_metric_columns(df)
+
+    alerts_raw, _ = detect_composite_alerts(df, gating_mode="off", apply_gating=False)
     alerts_gated, debug = detect_composite_alerts(df, gating_mode=GATING_MODE, apply_gating=True)
     merged_events = _merge_events(alerts_gated, df)
 
@@ -322,4 +467,5 @@ def run(infile: Path = MERGED, outfile: Path = OUT) -> Path:
     alerts_gated.to_csv(outfile, index=False)
     merged_events.to_csv(OUT_MERGED, index=False)
     debug.to_csv(OUT_DEBUG, index=False)
+
     return outfile
